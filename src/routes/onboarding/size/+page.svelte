@@ -4,12 +4,19 @@
 	import { VOLUME_UNITS } from '$lib/pool/units';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
+	import VolumeCalculator from '$lib/pool/components/VolumeCalculator.svelte';
 	import OnbTop from '$lib/pool/components/onboarding/OnbTop.svelte';
 	import OnbFooter from '$lib/pool/components/onboarding/OnbFooter.svelte';
 	import OnbTitle from '$lib/pool/components/onboarding/OnbTitle.svelte';
 
 	const palette = $derived(theme.palette);
 	let volumeMode = $state<'known' | 'calculate'>('known');
+
+	function applyCalculatedVolume(formattedVolume: string) {
+		app.volume = formattedVolume;
+		app.save();
+		volumeMode = 'known';
+	}
 
 	// keep only digits while typing; group thousands on blur
 	function sanitizeVolume(rawValue: string): string {
@@ -52,42 +59,50 @@
 				>Calculate it</button
 			>
 		</div>
-		<label
-			for="pool-volume"
-			style="display:block;font-size:13px;color:{palette.inkMuted};margin-bottom:7px;font-weight:600;"
-			>Total volume</label
-		>
-		<div
-			style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:{palette.card};border:2px solid {palette.accent};border-radius:15px;padding:14px 16px;box-shadow:{palette.shadow};"
-		>
-			<input
-				id="pool-volume"
-				type="text"
-				inputmode="numeric"
-				enterkeyhint="done"
-				bind:value={() => app.volume, (newValue) => (app.volume = sanitizeVolume(newValue))}
-				onblur={formatVolume}
-				onkeydown={(event) => event.key === 'Enter' && (event.target as HTMLInputElement).blur()}
-				style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:var(--font-display);font-weight:600;font-size:30px;color:{palette.ink};caret-color:{palette.accent};padding:0;"
-			/>
-			<UnitSelect
-				options={VOLUME_UNITS}
-				bind:value={app.volumeUnit}
-				onchange={() => app.save()}
-				name="volume-unit"
-			/>
-		</div>
-		<div
-			style="display:flex;gap:11px;align-items:flex-start;background:{palette.card};border:1px dashed {palette.inkMuted}55;border-radius:14px;padding:13px 14px;margin-top:16px;"
-		>
-			<div style="color:{palette.accent};flex-shrink:0;margin-top:1px;">
-				<Icon name="alert" size={18} strokeWidth={1.8} />
+		{#if volumeMode === 'known'}
+			<label
+				for="pool-volume"
+				style="display:block;font-size:13px;color:{palette.inkMuted};margin-bottom:7px;font-weight:600;"
+				>Total volume</label
+			>
+			<div
+				style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:{palette.card};border:2px solid {palette.accent};border-radius:15px;padding:14px 16px;box-shadow:{palette.shadow};"
+			>
+				<input
+					id="pool-volume"
+					type="text"
+					inputmode="numeric"
+					enterkeyhint="done"
+					bind:value={() => app.volume, (newValue) => (app.volume = sanitizeVolume(newValue))}
+					onblur={formatVolume}
+					onkeydown={(event) => event.key === 'Enter' && (event.target as HTMLInputElement).blur()}
+					style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:var(--font-display);font-weight:600;font-size:30px;color:{palette.ink};caret-color:{palette.accent};padding:0;"
+				/>
+				<UnitSelect
+					options={VOLUME_UNITS}
+					bind:value={app.volumeUnit}
+					onchange={() => app.save()}
+					name="volume-unit"
+				/>
 			</div>
-			<div style="font-size:12.5px;color:{palette.inkMuted};line-height:1.35;">
-				Don't know it? Switch to <b style="color:{palette.ink};">Calculate it</b> and we'll work it out
-				from length × width × depth.
+			<div
+				style="display:flex;gap:11px;align-items:flex-start;background:{palette.card};border:1px dashed {palette.inkMuted}55;border-radius:14px;padding:13px 14px;margin-top:16px;"
+			>
+				<div style="color:{palette.accent};flex-shrink:0;margin-top:1px;">
+					<Icon name="alert" size={18} strokeWidth={1.8} />
+				</div>
+				<div style="font-size:12.5px;color:{palette.inkMuted};line-height:1.35;">
+					Don't know it? Switch to <b style="color:{palette.ink};">Calculate it</b> and we'll work it
+					out from length × width × depth.
+				</div>
 			</div>
-		</div>
+		{:else}
+			<VolumeCalculator
+				shape={app.shape}
+				volumeUnit={app.volumeUnit}
+				onapply={applyCalculatedVolume}
+			/>
+		{/if}
 	</div>
 	<OnbFooter next="Next →" to="/onboarding/details" />
 </div>

@@ -72,7 +72,7 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 - **Done when:** `build/` contains no demo/story assets; `/more` in a production build has no
   Developer group; dev server still shows it.
 
-### 6. Database failure UX
+### 6. Database failure UX — ✅ done 2026-06-12
 
 - **Why:** if SQLite init or a migration throws, `app.load()`'s floating promise in
   `src/routes/+layout.svelte` swallows the app into a silent skeleton.
@@ -98,7 +98,7 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   pipeline supplies real ranking.
 - **Done when:** completing the wizard creates a visible issue in `/care` that survives restart.
 
-### 8. Fix-plan completion writes to the journal
+### 8. Fix-plan completion writes to the journal — ✅ done 2026-06-12
 
 - **Why:** done-checkboxes and "Mark all done" on `/results` are ephemeral.
 - **Do:** on marking an action done (and for each pending action on "Mark all done"), call
@@ -118,7 +118,7 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 - **Done when:** simulator delivers a notification (set cadence to 1 day, fake the clock or use
   `schedule({ at })` with a near date for testing).
 
-### 10. Onboarding "Calculate it" volume mode
+### 10. Onboarding "Calculate it" volume mode — ✅ done 2026-06-12
 
 - **Why:** the segmented toggle on `/onboarding/size` (and the same logic reused on
   `/more/profile`) has no calculator behind it.
@@ -129,14 +129,14 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   into `app.volume` (formatted) and flip back to "I know my volume".
 - **Done when:** 10 m × 5 m × 1.5 m rectangle yields 75,000 L in the volume field.
 
-### 11. Temperature capture
+### 11. Temperature capture — ✅ done 2026-06-12
 
 - **Why:** `tests.temperature` exists but no UI writes it (gauge fills only from seeds).
 - **Do:** optional sixth row on `/log/entry` ("Water temp", °C/°F select honouring
   `app.temperatureUnit` as default, stored canonical °C — extend the save handler conversion).
 - **Done when:** a manual test shows a temperature gauge value on Home.
 
-### 12. Time-scaled trend charts
+### 12. Time-scaled trend charts — ✅ done 2026-06-12
 
 - **Why:** `HChart.svelte` spaces points by array index — a 20-day gap renders like a 3-day gap.
 - **Do:** add optional `timestamps: number[]` prop; x positions become

@@ -67,6 +67,7 @@
 						{#if trend.points.length >= 2}
 							<HChart
 								series={trend.points}
+								timestamps={trend.dates.map((date) => date.getTime())}
 								color={trendColor}
 								height={38}
 								gradientId="spark-{trend.key}"

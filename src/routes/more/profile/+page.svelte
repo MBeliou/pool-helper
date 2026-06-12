@@ -7,11 +7,20 @@
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import ShapeGrid from '$lib/pool/components/ShapeGrid.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
+	import VolumeCalculator from '$lib/pool/components/VolumeCalculator.svelte';
 	import Pill from '$lib/pool/components/onboarding/Pill.svelte';
 
 	const palette = $derived(theme.palette);
 
 	onMount(() => app.load());
+
+	let calculatorOpen = $state(false);
+
+	function applyCalculatedVolume(formattedVolume: string) {
+		app.volume = formattedVolume;
+		app.save();
+		calculatorOpen = false;
+	}
 
 	const detailGroups: {
 		heading: string;
@@ -116,6 +125,20 @@
 					name="volume-unit"
 				/>
 			</div>
+			<button
+				onclick={() => (calculatorOpen = !calculatorOpen)}
+				style="background:none;border:none;padding:8px 2px 0;font-family:var(--font-sans);font-size:13px;font-weight:700;color:{palette.accent};"
+				>{calculatorOpen ? 'Hide calculator' : 'Calculate from dimensions'}</button
+			>
+			{#if calculatorOpen}
+				<div style="margin-top:10px;">
+					<VolumeCalculator
+						shape={app.shape}
+						volumeUnit={app.volumeUnit}
+						onapply={applyCalculatedVolume}
+					/>
+				</div>
+			{/if}
 		</div>
 		<!-- details -->
 		{#each detailGroups as group (group.heading)}

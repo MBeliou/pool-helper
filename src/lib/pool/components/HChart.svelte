@@ -3,6 +3,7 @@
 
 	let {
 		series,
+		timestamps,
 		color,
 		height = 150,
 		band = false,
@@ -12,6 +13,8 @@
 		gradientId
 	}: {
 		series: number[];
+		/** epoch ms per point — when provided, x positions reflect real time gaps */
+		timestamps?: number[];
 		color: string;
 		height?: number;
 		band?: boolean;
@@ -28,9 +31,20 @@
 	const PAD_X = 6;
 	const PAD_Y = 14;
 
+	// 0..1 horizontal position per point: real time gaps when timestamps are
+	// usable, even index spacing otherwise
+	const xFractions = $derived.by(() => {
+		if (timestamps && timestamps.length === series.length) {
+			const first = timestamps[0];
+			const last = timestamps[timestamps.length - 1];
+			if (last > first) return timestamps.map((timestamp) => (timestamp - first) / (last - first));
+		}
+		return series.map((_, index) => index / (series.length - 1));
+	});
+
 	const points = $derived(
 		series.map((value, index) => ({
-			x: PAD_X + (index / (series.length - 1)) * (CHART_WIDTH - PAD_X * 2),
+			x: PAD_X + xFractions[index] * (CHART_WIDTH - PAD_X * 2),
 			y: PAD_Y + (1 - value) * (height - PAD_Y * 2)
 		}))
 	);

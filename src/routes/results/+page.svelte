@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
@@ -15,6 +16,7 @@
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import { getLatestTest } from '$lib/pool/db/testsRepository';
+	import { insertAction } from '$lib/pool/db/actionsRepository';
 
 	const palette = $derived(theme.palette);
 
@@ -78,9 +80,37 @@
 		if (!action.done) action.expanded = !action.expanded;
 	}
 
+	// completed plan steps land in the /log journal (once per action per visit)
+	const journaledKeys = new SvelteSet<string>();
+
+	async function journalCompletedAction(action: ActionDisplay) {
+		if (journaledKeys.has(action.key)) return;
+		journaledKeys.add(action.key);
+		await insertAction({
+			performedAt: new Date(),
+			title: action.doseText
+				? `${action.title} · ${action.doseText.replace('Add ', '')} ${action.productName}`
+				: action.title,
+			detail: 'From fix plan'
+		});
+	}
+
 	function toggleDone(action: ActionDisplay) {
 		action.done = !action.done;
-		if (action.done) action.expanded = false;
+		if (action.done) {
+			action.expanded = false;
+			journalCompletedAction(action);
+		}
+	}
+
+	async function markAllDone() {
+		for (const action of actions) {
+			if (!action.done) {
+				action.done = true;
+				await journalCompletedAction(action);
+			}
+		}
+		goto('/');
 	}
 </script>
 
@@ -265,7 +295,7 @@
 	</div>
 	<div style="padding:10px 16px 12px;flex-shrink:0;">
 		<button
-			onclick={() => goto('/')}
+			onclick={() => (actions.length === 0 ? goto('/') : markAllDone())}
 			style="width:100%;background:{palette.accent};color:#fff;text-align:center;padding:15px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;"
 			>{actions.length === 0 ? 'Back to my pool' : 'Mark all done'}</button
 		>

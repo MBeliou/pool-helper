@@ -4,7 +4,14 @@
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
 	import { formatReading, parameterByKey, type ParameterKey } from '$lib/pool/chemistry';
-	import { HARDNESS_UNITS, type HardnessUnit } from '$lib/pool/units';
+	import {
+		HARDNESS_UNITS,
+		TEMPERATURE_UNITS,
+		temperatureFromCelsius,
+		temperatureToCelsius,
+		type HardnessUnit,
+		type TemperatureUnit
+	} from '$lib/pool/units';
 	import { hoursSince } from '$lib/pool/format';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -13,40 +20,43 @@
 
 	const palette = $derived(theme.palette);
 
-	// ta/ch carry their own unit; the selector declares what the typed number means
-	let readings = $state([
-		{ key: 'ph', label: 'pH', abbreviation: '', value: '', unit: '', selectable: false },
-		{
-			key: 'fc',
-			label: 'Free chlorine',
-			abbreviation: 'FC',
-			value: '',
-			unit: 'ppm',
-			selectable: false
-		},
+	// ta/ch/temp carry their own unit; the selector declares what the typed number means
+	interface EntryRow {
+		key: string;
+		label: string;
+		abbreviation: string;
+		value: string;
+		unit: string;
+		unitOptions?: readonly string[];
+	}
+
+	let readings = $state<EntryRow[]>([
+		{ key: 'ph', label: 'pH', abbreviation: '', value: '', unit: '' },
+		{ key: 'fc', label: 'Free chlorine', abbreviation: 'FC', value: '', unit: 'ppm' },
 		{
 			key: 'ta',
 			label: 'Total alkalinity',
 			abbreviation: 'TA',
 			value: '',
-			unit: 'ppm' as HardnessUnit,
-			selectable: true
+			unit: 'ppm',
+			unitOptions: HARDNESS_UNITS
 		},
 		{
 			key: 'ch',
 			label: 'Calcium hardness',
 			abbreviation: 'CH',
 			value: '',
-			unit: 'ppm' as HardnessUnit,
-			selectable: true
-		},
-		{
-			key: 'cya',
-			label: 'Cyanuric acid',
-			abbreviation: 'CYA',
-			value: '',
 			unit: 'ppm',
-			selectable: false
+			unitOptions: HARDNESS_UNITS
+		},
+		{ key: 'cya', label: 'Cyanuric acid', abbreviation: 'CYA', value: '', unit: 'ppm' },
+		{
+			key: 'temp',
+			label: 'Water temp',
+			abbreviation: '',
+			value: '',
+			unit: '°C',
+			unitOptions: TEMPERATURE_UNITS
 		}
 	]);
 	let focusedIndex = $state<number | null>(null);
@@ -58,18 +68,25 @@
 		await app.load();
 		const taReading = readings[2];
 		const chReading = readings[3];
+		const tempReading = readings[5];
 		taReading.unit = app.hardnessUnit;
 		chReading.unit = app.hardnessUnit;
+		tempReading.unit = app.temperatureUnit;
 		const latestTest = await getLatestTest();
 		if (!latestTest) return;
-		// prefill with the previous reading as a starting point — values shown
-		// in the unit they were recorded in, never converted
+		// prefill with the previous reading as a starting point — TA/CH shown in
+		// the unit they were recorded in, never converted; temperature is stored
+		// canonical °C and shown in the row's display unit
 		const rawValues: Record<string, number | null> = {
 			ph: latestTest.ph,
 			fc: latestTest.freeChlorine,
 			ta: latestTest.totalAlkalinity,
 			ch: latestTest.calciumHardness,
-			cya: latestTest.cyanuricAcid
+			cya: latestTest.cyanuricAcid,
+			temp:
+				latestTest.temperature === null
+					? null
+					: temperatureFromCelsius(latestTest.temperature, tempReading.unit as TemperatureUnit)
 		};
 		taReading.unit = latestTest.totalAlkalinityUnit;
 		chReading.unit = latestTest.calciumHardnessUnit;
@@ -104,7 +121,9 @@
 	}
 
 	async function saveTestAndShowAdvice() {
-		// values stored as entered, with the unit each row declares
+		// values stored as entered, with the unit each row declares;
+		// temperature is normalized to canonical °C at this boundary
+		const enteredTemperature = readingValue('temp');
 		await insertTest({
 			testedAt: new Date(),
 			tester: app.tester,
@@ -115,7 +134,10 @@
 			calciumHardness: readingValue('ch'),
 			calciumHardnessUnit: readings[3].unit as HardnessUnit,
 			cyanuricAcid: readingValue('cya'),
-			temperature: null
+			temperature:
+				enteredTemperature === null
+					? null
+					: temperatureToCelsius(enteredTemperature, readings[5].unit as TemperatureUnit)
 		});
 		goto('/results');
 	}
@@ -206,9 +228,9 @@
 								? `${palette.accent}0d`
 								: palette.card};font-family:var(--font-display);font-weight:600;font-size:19px;color:{palette.ink};outline:none;caret-color:{palette.accent};"
 						/>
-						{#if reading.selectable}
+						{#if reading.unitOptions}
 							<UnitSelect
-								options={HARDNESS_UNITS}
+								options={reading.unitOptions}
 								bind:value={reading.unit}
 								name="{reading.key}-unit"
 							/>

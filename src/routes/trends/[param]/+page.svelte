@@ -110,6 +110,7 @@
 			>
 				<HChart
 					series={trend.points}
+					timestamps={trend.dates.map((date) => date.getTime())}
 					color={trendColor}
 					height={132}
 					band={Boolean(trend.idealRangeText)}

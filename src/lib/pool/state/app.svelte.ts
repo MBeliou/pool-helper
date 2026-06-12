@@ -1,9 +1,25 @@
-import { initializeDatabase } from '../db/connection';
+import { initializeDatabase, resetDatabaseInitialization } from '../db/connection';
 import { loadProfile, saveProfile, type ProfileValues } from '../db/profileRepository';
 
 import type { HardnessUnit, TemperatureUnit, VolumeUnit } from '../units';
 
 const browser = typeof window !== 'undefined';
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error(message)), milliseconds);
+		promise.then(
+			(value) => {
+				clearTimeout(timer);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timer);
+				reject(error);
+			}
+		);
+	});
+}
 
 // legacy localStorage keys, imported once then removed
 const LEGACY_PROFILE_KEY = 'ph.profile';
@@ -28,21 +44,46 @@ class AppState {
 	reminderDays = $state(3);
 	disclaimerAcceptedAt = $state<Date | null>(null);
 
+	/** true once storage is initialized and the profile hydrated — the layout gates on it */
+	ready = $state(false);
+	loadError = $state<string | null>(null);
+
 	// single-flight: the layout and individual pages can all await load()
 	private loadPromise: Promise<void> | undefined;
 
+	/** Never rejects — failures land in loadError so the layout can offer a retry. */
 	load(): Promise<void> {
 		if (!browser) return Promise.resolve();
 		this.loadPromise ??= (async () => {
-			await initializeDatabase();
-			const storedProfile = await loadProfile();
-			if (storedProfile) {
-				this.applyProfile(storedProfile);
-				return;
+			try {
+				// some failure modes (e.g. missing wasm asset on web) hang instead of
+				// rejecting — a deadline turns them into a visible, retryable error
+				await withTimeout(
+					initializeDatabase(),
+					15_000,
+					'Storage initialization timed out after 15 s'
+				);
+				const storedProfile = await loadProfile();
+				if (storedProfile) this.applyProfile(storedProfile);
+				else await this.importLegacyLocalStorageProfile();
+				this.ready = true;
+				this.loadError = null;
+			} catch (initializationError) {
+				console.error('storage initialization failed', initializationError);
+				this.loadError =
+					initializationError instanceof Error
+						? initializationError.message
+						: String(initializationError);
+				this.loadPromise = undefined; // allow retry
 			}
-			await this.importLegacyLocalStorageProfile();
 		})();
 		return this.loadPromise;
+	}
+
+	/** Full restart is the most reliable recovery from a half-initialized native bridge. */
+	retryLoad(): void {
+		resetDatabaseInitialization();
+		window.location.reload();
 	}
 
 	async save(): Promise<void> {

@@ -37,3 +37,7 @@ export function hardnessFromPpm(ppm: number, unit: HardnessUnit): number {
 export function temperatureFromCelsius(celsius: number, unit: TemperatureUnit): number {
 	return unit === '°F' ? celsius * 1.8 + 32 : celsius;
 }
+
+export function temperatureToCelsius(value: number, unit: TemperatureUnit): number {
+	return unit === '°F' ? (value - 32) / 1.8 : value;
+}

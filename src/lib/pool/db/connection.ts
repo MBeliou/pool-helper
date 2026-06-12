@@ -29,6 +29,12 @@ async function initializeWebPlatform(sqliteConnection: SQLiteConnection): Promis
 	await sqliteConnection.initWebStore();
 }
 
+/** Clears the single-flight state so a failed initialization can be retried. */
+export function resetDatabaseInitialization(): void {
+	initializationPromise = undefined;
+	databaseConnection = undefined;
+}
+
 export async function initializeDatabase(): Promise<void> {
 	if (initializationPromise) return initializationPromise;
 	initializationPromise = (async () => {
