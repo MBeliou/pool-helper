@@ -20,8 +20,8 @@
 		hardnessUnit: HardnessUnit;
 		temperatureUnit: TemperatureUnit;
 	}[] = [
-		{ label: 'US', volumeUnit: 'gallons', hardnessUnit: 'ppm', temperatureUnit: '°F' },
-		{ label: 'UK / Imperial', volumeUnit: 'gallons', hardnessUnit: 'ppm', temperatureUnit: '°C' },
+		{ label: 'US', volumeUnit: 'US gal', hardnessUnit: 'ppm', temperatureUnit: '°F' },
+		{ label: 'UK / Imperial', volumeUnit: 'imp gal', hardnessUnit: 'ppm', temperatureUnit: '°C' },
 		{
 			label: 'Metric (most of world)',
 			volumeUnit: 'litres',

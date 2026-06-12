@@ -102,7 +102,11 @@ class AppState {
 				this.sanitiser = legacyProfile.sanitiser ?? this.sanitiser;
 				this.filter = legacyProfile.filter ?? this.filter;
 				this.unitsPreset = legacyProfile.unitsPreset ?? this.unitsPreset;
-				this.volumeUnit = legacyProfile.volumeUnit ?? this.volumeUnit;
+				// 'gallons' predates the US/imperial split; old behaviour used the US factor
+				this.volumeUnit =
+					legacyProfile.volumeUnit === 'gallons'
+						? 'US gal'
+						: (legacyProfile.volumeUnit ?? this.volumeUnit);
 				this.hardnessUnit = legacyProfile.hardnessUnit ?? this.hardnessUnit;
 				this.temperatureUnit = legacyProfile.temperatureUnit ?? this.temperatureUnit;
 				this.tester = legacyProfile.tester ?? this.tester;

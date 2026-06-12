@@ -7,7 +7,7 @@
 // ──────────────────────────────────────────────────────────────────────
 import type { TestRow } from './db/schema';
 import type { IconName } from './icons';
-import type { HardnessUnit, VolumeUnit } from './units';
+import { LITRES_PER_VOLUME_UNIT, type HardnessUnit, type VolumeUnit } from './units';
 import {
 	PARAMETERS,
 	displayUnitText,
@@ -79,29 +79,45 @@ interface ParameterFixRule {
 }
 
 // per-parameter, per-direction placeholder rules
-const FIX_RULES: Partial<Record<ParameterKey, Partial<Record<'low' | 'high', ParameterFixRule>>>> = {
-	fc: {
-		low: { title: 'Raise free chlorine', productOptions: CHLORINE_PRODUCTS },
-		high: { title: 'Let chlorine drift down', productOptions: [] }
-	},
-	ph: {
-		// design example: 680 g dry acid lowers pH by 0.4 in a 50 m³ pool → 34 g per pH unit per m³
-		low: { title: 'Raise pH', productOptions: [{ name: 'Soda ash', dosePerUnitPerCubicMetre: 30 }] },
-		high: { title: 'Lower pH', productOptions: [{ name: 'Dry acid', dosePerUnitPerCubicMetre: 34 }] }
-	},
-	ta: {
-		low: { title: 'Raise alkalinity', productOptions: [{ name: 'Baking soda', dosePerUnitPerCubicMetre: 1.7 }] },
-		high: { title: 'Lower alkalinity', productOptions: [] }
-	},
-	ch: {
-		low: { title: 'Raise hardness', productOptions: [{ name: 'Calcium chloride', dosePerUnitPerCubicMetre: 1.5 }] },
-		high: { title: 'Lower hardness', productOptions: [] }
-	},
-	cya: {
-		low: { title: 'Raise stabiliser', productOptions: [{ name: 'Cyanuric acid', dosePerUnitPerCubicMetre: 1 }] },
-		high: { title: 'Lower stabiliser', productOptions: [] }
-	}
-};
+const FIX_RULES: Partial<Record<ParameterKey, Partial<Record<'low' | 'high', ParameterFixRule>>>> =
+	{
+		fc: {
+			low: { title: 'Raise free chlorine', productOptions: CHLORINE_PRODUCTS },
+			high: { title: 'Let chlorine drift down', productOptions: [] }
+		},
+		ph: {
+			// design example: 680 g dry acid lowers pH by 0.4 in a 50 m³ pool → 34 g per pH unit per m³
+			low: {
+				title: 'Raise pH',
+				productOptions: [{ name: 'Soda ash', dosePerUnitPerCubicMetre: 30 }]
+			},
+			high: {
+				title: 'Lower pH',
+				productOptions: [{ name: 'Dry acid', dosePerUnitPerCubicMetre: 34 }]
+			}
+		},
+		ta: {
+			low: {
+				title: 'Raise alkalinity',
+				productOptions: [{ name: 'Baking soda', dosePerUnitPerCubicMetre: 1.7 }]
+			},
+			high: { title: 'Lower alkalinity', productOptions: [] }
+		},
+		ch: {
+			low: {
+				title: 'Raise hardness',
+				productOptions: [{ name: 'Calcium chloride', dosePerUnitPerCubicMetre: 1.5 }]
+			},
+			high: { title: 'Lower hardness', productOptions: [] }
+		},
+		cya: {
+			low: {
+				title: 'Raise stabiliser',
+				productOptions: [{ name: 'Cyanuric acid', dosePerUnitPerCubicMetre: 1 }]
+			},
+			high: { title: 'Lower stabiliser', productOptions: [] }
+		}
+	};
 
 function idealMidpoint(parameter: ParameterDefinition): number {
 	return ((parameter.idealLow ?? 0) + (parameter.idealHigh ?? 0)) / 2;
@@ -109,9 +125,7 @@ function idealMidpoint(parameter: ParameterDefinition): number {
 
 export function volumeToCubicMetres(volume: string, volumeUnit: VolumeUnit): number {
 	const volumeNumber = Number(volume.replace(/[^0-9]/g, '')) || 0;
-	if (volumeUnit === 'gallons') return (volumeNumber * 3.785) / 1000;
-	if (volumeUnit === 'm³') return volumeNumber;
-	return volumeNumber / 1000; // litres
+	return (volumeNumber * LITRES_PER_VOLUME_UNIT[volumeUnit]) / 1000;
 }
 
 export function formatDose(amount: number, liquid = false): string {

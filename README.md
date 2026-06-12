@@ -40,3 +40,20 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Mobile development (Capacitor iOS)
+
+Two sync modes, switched by the `CAP_LIVE_RELOAD` env var (see `capacitor.config.ts`):
+
+```sh
+# live reload: native app loads from the Vite dev server on this machine
+pnpm dev --host          # terminal 1 (port 5001)
+pnpm cap:dev             # terminal 2 — sync with CAP_LIVE_RELOAD set to this machine's IP
+
+# production: app serves the static build/ bundle (works offline)
+pnpm cap:prod
+```
+
+After either sync, build & run from Xcode (`npx cap open ios`) or via `xcodebuild` + `simctl`.
+Schema changes: edit `src/lib/pool/db/schema.ts`, then `pnpm db:generate`; migrations apply on
+next app launch.

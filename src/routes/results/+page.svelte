@@ -58,7 +58,11 @@
 	function pickProduct(product: ProductOption) {
 		if (product.disabledReason || !sheetAction) return;
 		sheetAction.productName = product.name;
-		sheetAction.doseText = productDose(product, sheetAction.canonicalDelta, sheetAction.cubicMetres);
+		sheetAction.doseText = productDose(
+			product,
+			sheetAction.canonicalDelta,
+			sheetAction.cubicMetres
+		);
 		sheetAction.mathRows = sheetAction.mathRows.map((row, rowIndex) =>
 			rowIndex === 2 ? [product.name, `×${product.dosePerUnitPerCubicMetre} g/m³`] : row
 		);

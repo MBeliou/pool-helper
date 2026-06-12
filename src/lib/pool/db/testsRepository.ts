@@ -8,11 +8,7 @@ export async function insertTest(newTest: NewTestRow): Promise<void> {
 }
 
 export async function getLatestTest(): Promise<TestRow | undefined> {
-	const rows = await database
-		.select()
-		.from(testsTable)
-		.orderBy(desc(testsTable.testedAt))
-		.limit(1);
+	const rows = await database.select().from(testsTable).orderBy(desc(testsTable.testedAt)).limit(1);
 	return rows[0];
 }
 

@@ -55,7 +55,9 @@
 				? `Fixing: ${issueTitleById.get(action.issueId) ?? 'an issue'}`
 				: (action.detail ?? 'Action')
 		}));
-		entries = [...testEntries, ...actionEntries].sort((left, right) => right.at.getTime() - left.at.getTime());
+		entries = [...testEntries, ...actionEntries].sort(
+			(left, right) => right.at.getTime() - left.at.getTime()
+		);
 		loaded = true;
 	}
 

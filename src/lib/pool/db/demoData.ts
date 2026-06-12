@@ -2,13 +2,7 @@
 // Reachable from the More screen's Developer section.
 import { desc } from 'drizzle-orm';
 import { database } from './connection';
-import {
-	actionsTable,
-	issuesTable,
-	issueEventsTable,
-	testsTable,
-	type NewTestRow
-} from './schema';
+import { actionsTable, issuesTable, issueEventsTable, testsTable, type NewTestRow } from './schema';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -85,10 +79,34 @@ export async function seedProblemPool(): Promise<void> {
 	});
 	const cloudyWaterId = await latestIssueId();
 	await database.insert(issueEventsTable).values([
-		{ issueId: cloudyWaterId, orderIndex: 0, title: 'Shocked to 10 ppm FC', happenedAt: daysAgoAt(1, 9), state: 'done' },
-		{ issueId: cloudyWaterId, orderIndex: 1, title: 'Re-tested · FC holding 6 ppm', happenedAt: daysAgoAt(1, 18), state: 'done' },
-		{ issueId: cloudyWaterId, orderIndex: 2, title: 'Pump running 24h', whenLabel: 'In progress', state: 'active' },
-		{ issueId: cloudyWaterId, orderIndex: 3, title: 'Add clarifier + vacuum', whenLabel: 'Day 3 · upcoming', state: 'upcoming' }
+		{
+			issueId: cloudyWaterId,
+			orderIndex: 0,
+			title: 'Shocked to 10 ppm FC',
+			happenedAt: daysAgoAt(1, 9),
+			state: 'done'
+		},
+		{
+			issueId: cloudyWaterId,
+			orderIndex: 1,
+			title: 'Re-tested · FC holding 6 ppm',
+			happenedAt: daysAgoAt(1, 18),
+			state: 'done'
+		},
+		{
+			issueId: cloudyWaterId,
+			orderIndex: 2,
+			title: 'Pump running 24h',
+			whenLabel: 'In progress',
+			state: 'active'
+		},
+		{
+			issueId: cloudyWaterId,
+			orderIndex: 3,
+			title: 'Add clarifier + vacuum',
+			whenLabel: 'Day 3 · upcoming',
+			state: 'upcoming'
+		}
 	]);
 
 	// issue 2 · slow-burn pH drift
@@ -102,9 +120,27 @@ export async function seedProblemPool(): Promise<void> {
 	});
 	const risingPhId = await latestIssueId();
 	await database.insert(issueEventsTable).values([
-		{ issueId: risingPhId, orderIndex: 0, title: 'Dosed 680 g dry acid', happenedAt: daysAgoAt(14, 11), state: 'done' },
-		{ issueId: risingPhId, orderIndex: 1, title: 'Dosed 540 g dry acid', happenedAt: daysAgoAt(7, 9), state: 'done' },
-		{ issueId: risingPhId, orderIndex: 2, title: 'Watch weekly · re-dose when above 7.6', whenLabel: 'Ongoing', state: 'active' }
+		{
+			issueId: risingPhId,
+			orderIndex: 0,
+			title: 'Dosed 680 g dry acid',
+			happenedAt: daysAgoAt(14, 11),
+			state: 'done'
+		},
+		{
+			issueId: risingPhId,
+			orderIndex: 1,
+			title: 'Dosed 540 g dry acid',
+			happenedAt: daysAgoAt(7, 9),
+			state: 'done'
+		},
+		{
+			issueId: risingPhId,
+			orderIndex: 2,
+			title: 'Watch weekly · re-dose when above 7.6',
+			whenLabel: 'Ongoing',
+			state: 'active'
+		}
 	]);
 
 	// issue 3 · resolved algae bloom
@@ -119,14 +155,37 @@ export async function seedProblemPool(): Promise<void> {
 	});
 	const algaeBloomId = await latestIssueId();
 	await database.insert(issueEventsTable).values([
-		{ issueId: algaeBloomId, orderIndex: 0, title: 'Brushed walls + shocked to 12 ppm', happenedAt: daysAgoAt(13, 9), state: 'done' },
-		{ issueId: algaeBloomId, orderIndex: 1, title: 'Filtered 48h · vacuumed debris', happenedAt: daysAgoAt(11, 10), state: 'done' },
-		{ issueId: algaeBloomId, orderIndex: 2, title: 'Water clear · FC back to 4 ppm', happenedAt: daysAgoAt(9, 17), state: 'done' }
+		{
+			issueId: algaeBloomId,
+			orderIndex: 0,
+			title: 'Brushed walls + shocked to 12 ppm',
+			happenedAt: daysAgoAt(13, 9),
+			state: 'done'
+		},
+		{
+			issueId: algaeBloomId,
+			orderIndex: 1,
+			title: 'Filtered 48h · vacuumed debris',
+			happenedAt: daysAgoAt(11, 10),
+			state: 'done'
+		},
+		{
+			issueId: algaeBloomId,
+			orderIndex: 2,
+			title: 'Water clear · FC back to 4 ppm',
+			happenedAt: daysAgoAt(9, 17),
+			state: 'done'
+		}
 	]);
 
 	// actions taken — journal entries mirroring the issue work + one standalone
 	await database.insert(actionsTable).values([
-		{ performedAt: daysAgoAt(1, 9), title: 'Shocked to 10 ppm FC', detail: 'Cal-Hypo 65% · 1.4 kg', issueId: cloudyWaterId },
+		{
+			performedAt: daysAgoAt(1, 9),
+			title: 'Shocked to 10 ppm FC',
+			detail: 'Cal-Hypo 65% · 1.4 kg',
+			issueId: cloudyWaterId
+		},
 		{ performedAt: daysAgoAt(7, 9), title: 'Dosed 540 g dry acid', issueId: risingPhId },
 		{ performedAt: daysAgoAt(14, 11), title: 'Dosed 680 g dry acid', issueId: risingPhId },
 		{ performedAt: daysAgoAt(13, 9), title: 'Brushed walls + vacuumed', issueId: algaeBloomId },
@@ -167,7 +226,9 @@ export async function seedBalancedPool(): Promise<void> {
 		})
 	);
 	await database.insert(testsTable).values(testRows);
-	await database.insert(actionsTable).values([
-		{ performedAt: daysAgoAt(5, 18), title: 'Backwashed filter', detail: 'Routine maintenance' }
-	]);
+	await database
+		.insert(actionsTable)
+		.values([
+			{ performedAt: daysAgoAt(5, 18), title: 'Backwashed filter', detail: 'Routine maintenance' }
+		]);
 }

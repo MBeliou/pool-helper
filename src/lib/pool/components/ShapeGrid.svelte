@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { theme } from '../state/theme.svelte';
 
-	let {
-		value = $bindable(),
-		onchange
-	}: { value: string; onchange?: (shape: string) => void } = $props();
+	let { value = $bindable(), onchange }: { value: string; onchange?: (shape: string) => void } =
+		$props();
 
 	const palette = $derived(theme.palette);
 

@@ -25,7 +25,8 @@
 	onMount(async () => {
 		await app.load();
 		const requestedId = Number(page.url.searchParams.get('issue'));
-		issue = Number.isFinite(requestedId) && requestedId > 0 ? await getIssue(requestedId) : undefined;
+		issue =
+			Number.isFinite(requestedId) && requestedId > 0 ? await getIssue(requestedId) : undefined;
 		if (!issue) issue = (await listIssues())[0]; // direct visit fallback
 		if (issue) events = await listEventsForIssue(issue.id);
 		loaded = true;

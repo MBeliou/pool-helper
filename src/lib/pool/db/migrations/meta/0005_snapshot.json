@@ -1,8 +1,8 @@
 {
+	"id": "fbd61f72-cf57-4e4e-b8db-4f3dd69dbfd4",
+	"prevId": "93c08cb6-8375-4220-a65f-f8f70e43ffd3",
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "e25aa11a-6fb4-4d14-bcf4-c5d207b1afa8",
-	"prevId": "bc3964d2-ad8a-4658-b112-44bcb9429534",
 	"tables": {
 		"actions": {
 			"name": "actions",
@@ -48,11 +48,11 @@
 				"actions_issue_id_issues_id_fk": {
 					"name": "actions_issue_id_issues_id_fk",
 					"tableFrom": "actions",
-					"tableTo": "issues",
 					"columnsFrom": ["issue_id"],
+					"tableTo": "issues",
 					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -117,11 +117,11 @@
 				"issue_events_issue_id_issues_id_fk": {
 					"name": "issue_events_issue_id_issues_id_fk",
 					"tableFrom": "issue_events",
-					"tableTo": "issues",
 					"columnsFrom": ["issue_id"],
+					"tableTo": "issues",
 					"columnsTo": ["id"],
-					"onDelete": "no action",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "no action"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -220,6 +220,14 @@
 					"autoincrement": false,
 					"default": false
 				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": "'My pool'"
+				},
 				"shape": {
 					"name": "shape",
 					"type": "text",
@@ -289,6 +297,14 @@
 					"primaryKey": false,
 					"notNull": true,
 					"autoincrement": false
+				},
+				"reminder_days": {
+					"name": "reminder_days",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 3
 				}
 			},
 			"indexes": {},
@@ -390,9 +406,9 @@
 	"views": {},
 	"enums": {},
 	"_meta": {
+		"columns": {},
 		"schemas": {},
-		"tables": {},
-		"columns": {}
+		"tables": {}
 	},
 	"internal": {
 		"indexes": {}

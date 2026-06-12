@@ -19,9 +19,7 @@ export async function runDatabaseMigrations(databaseConnection: SQLiteDBConnecti
 	const appliedResult = await databaseConnection.query('SELECT tag FROM migrations;');
 	const appliedTags = new Set((appliedResult.values ?? []).map((row) => row.tag as string));
 
-	const orderedEntries = [...migrationJournal.entries].sort(
-		(left, right) => left.idx - right.idx
-	);
+	const orderedEntries = [...migrationJournal.entries].sort((left, right) => left.idx - right.idx);
 	for (const entry of orderedEntries) {
 		if (appliedTags.has(entry.tag)) continue;
 		const migrationSql = migrationSqlByPath[`./migrations/${entry.tag}.sql`];

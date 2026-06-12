@@ -34,12 +34,70 @@ export interface ParameterDefinition {
 }
 
 export const PARAMETERS: ParameterDefinition[] = [
-	{ key: 'ph', label: 'pH', shortLabel: 'pH', icon: 'drop', scaleMin: 6.8, scaleMax: 8.2, idealLow: 7.2, idealHigh: 7.6, decimals: 1 },
-	{ key: 'fc', label: 'Free chlorine', shortLabel: 'Free Cl', icon: 'beaker', scaleMin: 0, scaleMax: 6, idealLow: 2, idealHigh: 4, decimals: 1 },
-	{ key: 'ta', label: 'Total alkalinity', shortLabel: 'Alkalinity', icon: 'wave', scaleMin: 0, scaleMax: 200, idealLow: 80, idealHigh: 120, decimals: 0 },
-	{ key: 'ch', label: 'Calcium hardness', shortLabel: 'Hardness', icon: 'spark', scaleMin: 0, scaleMax: 600, idealLow: 200, idealHigh: 400, decimals: 0 },
-	{ key: 'cya', label: 'Cyanuric acid', shortLabel: 'CYA', icon: 'shield', scaleMin: 0, scaleMax: 100, idealLow: 30, idealHigh: 50, decimals: 0 },
-	{ key: 'temp', label: 'Temperature', shortLabel: 'Temp', icon: 'thermo', scaleMin: 0, scaleMax: 50, decimals: 0 }
+	{
+		key: 'ph',
+		label: 'pH',
+		shortLabel: 'pH',
+		icon: 'drop',
+		scaleMin: 6.8,
+		scaleMax: 8.2,
+		idealLow: 7.2,
+		idealHigh: 7.6,
+		decimals: 1
+	},
+	{
+		key: 'fc',
+		label: 'Free chlorine',
+		shortLabel: 'Free Cl',
+		icon: 'beaker',
+		scaleMin: 0,
+		scaleMax: 6,
+		idealLow: 2,
+		idealHigh: 4,
+		decimals: 1
+	},
+	{
+		key: 'ta',
+		label: 'Total alkalinity',
+		shortLabel: 'Alkalinity',
+		icon: 'wave',
+		scaleMin: 0,
+		scaleMax: 200,
+		idealLow: 80,
+		idealHigh: 120,
+		decimals: 0
+	},
+	{
+		key: 'ch',
+		label: 'Calcium hardness',
+		shortLabel: 'Hardness',
+		icon: 'spark',
+		scaleMin: 0,
+		scaleMax: 600,
+		idealLow: 200,
+		idealHigh: 400,
+		decimals: 0
+	},
+	{
+		key: 'cya',
+		label: 'Cyanuric acid',
+		shortLabel: 'CYA',
+		icon: 'shield',
+		scaleMin: 0,
+		scaleMax: 100,
+		idealLow: 30,
+		idealHigh: 50,
+		decimals: 0
+	},
+	{
+		key: 'temp',
+		label: 'Temperature',
+		shortLabel: 'Temp',
+		icon: 'thermo',
+		scaleMin: 0,
+		scaleMax: 50,
+		decimals: 0
+	}
 ];
 
 export const parameterByKey = Object.fromEntries(
@@ -108,7 +166,10 @@ export function displayValue(
 }
 
 /** unit suffix shown next to a parameter's display value ('' for pH) */
-export function displayUnitText(parameter: ParameterDefinition, displayUnits: DisplayUnits): string {
+export function displayUnitText(
+	parameter: ParameterDefinition,
+	displayUnits: DisplayUnits
+): string {
 	if (parameter.key === 'ph') return '';
 	if (parameter.key === 'ta' || parameter.key === 'ch') return displayUnits.hardnessUnit;
 	if (parameter.key === 'temp') return displayUnits.temperatureUnit;

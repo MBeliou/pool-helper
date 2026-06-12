@@ -42,13 +42,7 @@ export async function initializeDatabase(): Promise<void> {
 		databaseConnection =
 			consistency.result && hasExistingConnection
 				? await sqliteConnection.retrieveConnection(DATABASE_NAME, false)
-				: await sqliteConnection.createConnection(
-						DATABASE_NAME,
-						false,
-						'no-encryption',
-						1,
-						false
-					);
+				: await sqliteConnection.createConnection(DATABASE_NAME, false, 'no-encryption', 1, false);
 		await databaseConnection.open();
 		await runDatabaseMigrations(databaseConnection);
 		if (isWebPlatform) await sqliteConnection.saveToStore(DATABASE_NAME);

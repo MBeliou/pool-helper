@@ -4,11 +4,11 @@ import { issuesTable, issueEventsTable, type IssueRow, type IssueEventRow } from
 
 /** all issues, active first, newest first within each group */
 export async function listIssues(): Promise<IssueRow[]> {
-	const rows = await database
-		.select()
-		.from(issuesTable)
-		.orderBy(desc(issuesTable.startedAt));
-	return [...rows.filter((issue) => !issue.resolvedAt), ...rows.filter((issue) => issue.resolvedAt)];
+	const rows = await database.select().from(issuesTable).orderBy(desc(issuesTable.startedAt));
+	return [
+		...rows.filter((issue) => !issue.resolvedAt),
+		...rows.filter((issue) => issue.resolvedAt)
+	];
 }
 
 export async function getIssue(issueId: number): Promise<IssueRow | undefined> {

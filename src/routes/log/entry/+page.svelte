@@ -16,10 +16,38 @@
 	// ta/ch carry their own unit; the selector declares what the typed number means
 	let readings = $state([
 		{ key: 'ph', label: 'pH', abbreviation: '', value: '', unit: '', selectable: false },
-		{ key: 'fc', label: 'Free chlorine', abbreviation: 'FC', value: '', unit: 'ppm', selectable: false },
-		{ key: 'ta', label: 'Total alkalinity', abbreviation: 'TA', value: '', unit: 'ppm' as HardnessUnit, selectable: true },
-		{ key: 'ch', label: 'Calcium hardness', abbreviation: 'CH', value: '', unit: 'ppm' as HardnessUnit, selectable: true },
-		{ key: 'cya', label: 'Cyanuric acid', abbreviation: 'CYA', value: '', unit: 'ppm', selectable: false }
+		{
+			key: 'fc',
+			label: 'Free chlorine',
+			abbreviation: 'FC',
+			value: '',
+			unit: 'ppm',
+			selectable: false
+		},
+		{
+			key: 'ta',
+			label: 'Total alkalinity',
+			abbreviation: 'TA',
+			value: '',
+			unit: 'ppm' as HardnessUnit,
+			selectable: true
+		},
+		{
+			key: 'ch',
+			label: 'Calcium hardness',
+			abbreviation: 'CH',
+			value: '',
+			unit: 'ppm' as HardnessUnit,
+			selectable: true
+		},
+		{
+			key: 'cya',
+			label: 'Cyanuric acid',
+			abbreviation: 'CYA',
+			value: '',
+			unit: 'ppm',
+			selectable: false
+		}
 	]);
 	let focusedIndex = $state<number | null>(null);
 	let inputElements = $state<HTMLInputElement[]>([]);
@@ -117,7 +145,8 @@
 		{#snippet right()}
 			<a
 				href="/log/new"
-				style="font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:7px 12px;border-radius:999px;">Change</a
+				style="font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:7px 12px;border-radius:999px;"
+				>Change</a
 			>
 		{/snippet}
 	</NavHeader>
@@ -178,7 +207,11 @@
 								: palette.card};font-family:var(--font-display);font-weight:600;font-size:19px;color:{palette.ink};outline:none;caret-color:{palette.accent};"
 						/>
 						{#if reading.selectable}
-							<UnitSelect options={HARDNESS_UNITS} bind:value={reading.unit} name="{reading.key}-unit" />
+							<UnitSelect
+								options={HARDNESS_UNITS}
+								bind:value={reading.unit}
+								name="{reading.key}-unit"
+							/>
 						{:else}
 							<span style="font-size:12.5px;color:{palette.inkMuted};width:34px;">
 								{reading.unit}

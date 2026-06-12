@@ -59,9 +59,27 @@
 
 	// step 4 · ranked causes
 	const causes = [
-		{ title: 'Low chlorine + high pH', likelihood: 'Most likely', percent: 78, status: 'low', fix: 'Shock + lower pH' },
-		{ title: 'Weak filtration', likelihood: 'Possible', percent: 41, status: 'high', fix: 'Run pump 8h+' },
-		{ title: 'High calcium hardness', likelihood: 'Less likely', percent: 18, status: 'info', fix: 'Partial drain' }
+		{
+			title: 'Low chlorine + high pH',
+			likelihood: 'Most likely',
+			percent: 78,
+			status: 'low',
+			fix: 'Shock + lower pH'
+		},
+		{
+			title: 'Weak filtration',
+			likelihood: 'Possible',
+			percent: 41,
+			status: 'high',
+			fix: 'Run pump 8h+'
+		},
+		{
+			title: 'High calcium hardness',
+			likelihood: 'Less likely',
+			percent: 18,
+			status: 'info',
+			fix: 'Partial drain'
+		}
 	];
 
 	const stepHeadings: Record<number, { title: string; sub: string }> = {
@@ -133,7 +151,10 @@
 							? palette.accent
 							: 'transparent'};position:relative;"
 					>
-						<SymptomGlyph kind={symptom.kind} color={selected ? palette.accent : palette.inkMuted} />
+						<SymptomGlyph
+							kind={symptom.kind}
+							color={selected ? palette.accent : palette.inkMuted}
+						/>
 						<span
 							style="font-weight:700;font-size:15px;color:{selected
 								? palette.accent
@@ -164,9 +185,7 @@
 			<div style="display:flex;flex-direction:column;gap:20px;">
 				{#each questions as question (question.prompt)}
 					<div>
-						<div
-							style="font-size:15.5px;font-weight:700;color:{palette.ink};margin-bottom:10px;"
-						>
+						<div style="font-size:15.5px;font-weight:700;color:{palette.ink};margin-bottom:10px;">
 							{question.prompt}
 						</div>
 						<div style="display:flex;flex-wrap:wrap;gap:8px;">

@@ -21,11 +21,16 @@
 		testCount = await countTests();
 	});
 
-	const volumeUnitShort: Record<string, string> = { litres: 'L', gallons: 'gal', 'm³': 'm³' };
+	const volumeUnitShort: Record<string, string> = { litres: 'L' }; // others are short already
 	const presetShort = $derived(app.unitsPreset.split(' ')[0]);
 
 	const profileSummary = $derived(
-		[app.shape, app.surface.toLowerCase(), app.sanitiser.toLowerCase(), app.filter.toLowerCase()].join(' · ')
+		[
+			app.shape,
+			app.surface.toLowerCase(),
+			app.sanitiser.toLowerCase(),
+			app.filter.toLowerCase()
+		].join(' · ')
 	);
 	const reminderSummary = $derived(
 		app.reminderDays === 1 ? 'Test every day' : `Test every ${app.reminderDays} days`
@@ -138,59 +143,61 @@
 				</div>
 			</div>
 		{/each}
-		<!-- Developer -->
-		<div style="display:flex;flex-direction:column;gap:6px;">
-			<span
-				style="font-size:11.5px;color:{palette.inkMuted};text-transform:uppercase;letter-spacing:0.5px;font-weight:700;"
-				>Developer{seedStatus ? ` · ${seedStatus}` : ''}</span
-			>
-			<div
-				style="background:{palette.card};border-radius:16px;box-shadow:{palette.shadow};overflow:hidden;"
-			>
-				<button
-					onclick={() => runSeed(seedProblemPool, 'Problem pool loaded')}
-					style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:none;border:none;text-align:left;font-family:var(--font-sans);"
+		<!-- Developer — dev builds only; vite strips this from production output -->
+		{#if import.meta.env.DEV}
+			<div style="display:flex;flex-direction:column;gap:6px;">
+				<span
+					style="font-size:11.5px;color:{palette.inkMuted};text-transform:uppercase;letter-spacing:0.5px;font-weight:700;"
+					>Developer{seedStatus ? ` · ${seedStatus}` : ''}</span
 				>
-					<div>
-						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
-							Load demo data · problem pool
-						</div>
-						<div style="font-size:11.5px;color:{palette.inkMuted};">
-							A month of drifting chemistry + care issues
-						</div>
-					</div>
-					<Icon name="beaker" size={15} color={palette.inkMuted} strokeWidth={2} />
-				</button>
-				<button
-					onclick={() => runSeed(seedBalancedPool, 'Balanced pool loaded')}
-					style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+				<div
+					style="background:{palette.card};border-radius:16px;box-shadow:{palette.shadow};overflow:hidden;"
 				>
-					<div>
-						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
-							Load demo data · balanced pool
+					<button
+						onclick={() => runSeed(seedProblemPool, 'Problem pool loaded')}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:none;border:none;text-align:left;font-family:var(--font-sans);"
+					>
+						<div>
+							<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
+								Load demo data · problem pool
+							</div>
+							<div style="font-size:11.5px;color:{palette.inkMuted};">
+								A month of drifting chemistry + care issues
+							</div>
 						</div>
-						<div style="font-size:11.5px;color:{palette.inkMuted};">
-							Three steady weeks, nothing to fix
+						<Icon name="beaker" size={15} color={palette.inkMuted} strokeWidth={2} />
+					</button>
+					<button
+						onclick={() => runSeed(seedBalancedPool, 'Balanced pool loaded')}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+					>
+						<div>
+							<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
+								Load demo data · balanced pool
+							</div>
+							<div style="font-size:11.5px;color:{palette.inkMuted};">
+								Three steady weeks, nothing to fix
+							</div>
 						</div>
-					</div>
-					<Icon name="shield" size={15} color={palette.inkMuted} strokeWidth={2} />
-				</button>
-				<button
-					onclick={() => runSeed(clearLoggedData, 'Logged data cleared')}
-					style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
-				>
-					<div>
-						<div style="font-size:14.5px;color:{palette.status.low};font-weight:600;">
-							Clear logged data
+						<Icon name="shield" size={15} color={palette.inkMuted} strokeWidth={2} />
+					</button>
+					<button
+						onclick={() => runSeed(clearLoggedData, 'Logged data cleared')}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+					>
+						<div>
+							<div style="font-size:14.5px;color:{palette.status.low};font-weight:600;">
+								Clear logged data
+							</div>
+							<div style="font-size:11.5px;color:{palette.inkMuted};">
+								Deletes tests, actions and issues · keeps your profile
+							</div>
 						</div>
-						<div style="font-size:11.5px;color:{palette.inkMuted};">
-							Deletes tests, actions and issues · keeps your profile
-						</div>
-					</div>
-					<Icon name="close" size={15} color={palette.inkMuted} strokeWidth={2} />
-				</button>
+						<Icon name="close" size={15} color={palette.inkMuted} strokeWidth={2} />
+					</button>
+				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
 	<TabBar />
 	<ComingSoonSheet

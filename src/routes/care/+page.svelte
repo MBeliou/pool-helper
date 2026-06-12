@@ -72,9 +72,7 @@
 							)};margin-top:4px;flex-shrink:0;"
 						></div>
 						<div style="flex:1;min-width:0;">
-							<div
-								style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"
-							>
+							<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
 								<span
 									style="font-weight:700;font-size:15.5px;color:{resolved
 										? palette.inkMuted

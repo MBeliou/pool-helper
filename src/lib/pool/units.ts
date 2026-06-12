@@ -1,8 +1,16 @@
 // Measurement units — single source of truth; schema columns and UI selectors
 // derive their literal types from these consts.
 
-export const VOLUME_UNITS = ['litres', 'gallons', 'm³'] as const;
+// US and imperial gallons differ by ~17% — they must stay distinct units
+export const VOLUME_UNITS = ['litres', 'US gal', 'imp gal', 'm³'] as const;
 export type VolumeUnit = (typeof VOLUME_UNITS)[number];
+
+export const LITRES_PER_VOLUME_UNIT: Record<VolumeUnit, number> = {
+	litres: 1,
+	'US gal': 3.785,
+	'imp gal': 4.546,
+	'm³': 1000
+};
 
 // Alkalinity and calcium hardness are both CaCO₃ equivalents and share units:
 // ppm (mg/L), French degrees (1 °fH = 10 ppm), German degrees (1 °dH = 17.8 ppm).

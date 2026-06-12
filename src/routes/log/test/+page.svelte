@@ -90,7 +90,10 @@
 							style="width:36px;height:36px;border-radius:10px;background:{statusColor(
 								palette,
 								row.status
-							)}17;display:grid;place-items:center;color:{statusColor(palette, row.status)};flex-shrink:0;"
+							)}17;display:grid;place-items:center;color:{statusColor(
+								palette,
+								row.status
+							)};flex-shrink:0;"
 						>
 							<Icon name={parameter?.icon ?? 'drop'} size={18} strokeWidth={1.8} />
 						</div>

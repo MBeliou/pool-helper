@@ -30,7 +30,9 @@
 
 <!-- the design's water header: gradient, white ink, wave cutout into the page -->
 <div
-	style="flex-shrink:0;background:{palette.gradient};color:{palette.onGradient};position:relative;padding:0 18px {large ? 30 : 26}px;"
+	style="flex-shrink:0;background:{palette.gradient};color:{palette.onGradient};position:relative;padding:0 18px {large
+		? 30
+		: 26}px;"
 >
 	<div class="safe-top"></div>
 	<div style="display:flex;align-items:{large ? 'flex-start' : 'center'};gap:12px;padding-top:4px;">
@@ -40,7 +42,13 @@
 				aria-label="Back"
 				style="width:38px;height:38px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);display:grid;place-items:center;flex-shrink:0;padding:0;"
 			>
-				<Icon name="chevron" size={18} color="#fff" strokeWidth={2.2} style="transform:rotate(180deg);" />
+				<Icon
+					name="chevron"
+					size={18}
+					color="#fff"
+					strokeWidth={2.2}
+					style="transform:rotate(180deg);"
+				/>
 			</button>
 		{/if}
 		<div style="flex:1;min-width:0;">
@@ -64,6 +72,9 @@
 		preserveAspectRatio="none"
 		style="position:absolute;bottom:-1px;left:0;width:100%;height:26px;display:block;"
 	>
-		<path d="M0 14 C 60 2 120 24 200 14 C 280 4 340 24 400 12 L400 26 L0 26 Z" fill={palette.page} />
+		<path
+			d="M0 14 C 60 2 120 24 200 14 C 280 4 340 24 400 12 L400 26 L0 26 Z"
+			fill={palette.page}
+		/>
 	</svg>
 </div>

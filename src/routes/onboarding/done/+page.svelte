@@ -5,7 +5,7 @@
 
 	const palette = $derived(theme.palette);
 
-	const volumeUnitShort: Record<string, string> = { litres: 'L', gallons: 'gal', 'm³': 'm³' };
+	const volumeUnitShort: Record<string, string> = { litres: 'L' }; // others are short already
 
 	const poolFacts = $derived([
 		['Shape', app.shape],

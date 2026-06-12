@@ -53,7 +53,7 @@
 </script>
 
 <svg
-	width={width}
+	{width}
 	height={centerY + 10}
 	viewBox="0 0 {width} {centerY + 10}"
 	style="display:block;overflow:visible;"

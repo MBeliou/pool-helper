@@ -14,7 +14,9 @@
 	const palette = $derived(theme.palette);
 
 	let testedSubtitle = $state('Loading…');
-	let readings = $state<GaugeReading[]>(gaugeReadings(undefined, { hardnessUnit: '°fH', temperatureUnit: '°C' }));
+	let readings = $state<GaugeReading[]>(
+		gaugeReadings(undefined, { hardnessUnit: '°fH', temperatureUnit: '°C' })
+	);
 	let fixActions = $state<FixAction[]>([]);
 	let hasTest = $state(false);
 	let loaded = $state(false);
@@ -56,8 +58,8 @@
 					<div
 						style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;padding:7px 12px;border-radius:999px;font-weight:700;font-size:12.5px;white-space:nowrap;"
 					>
-						<span style="width:8px;height:8px;border-radius:999px;background:#fff;"></span
-						>{statusPillText}
+						<span style="width:8px;height:8px;border-radius:999px;background:#fff;"
+						></span>{statusPillText}
 					</div>
 				{/if}
 			{/snippet}
