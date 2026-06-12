@@ -9,7 +9,7 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 
 ## P0 — Blockers: wrong or unsafe to ship
 
-### 1. Replace placeholder dosing chemistry
+### 1. Replace placeholder dosing chemistry — ✅ done 2026-06-12 (see docs/dosing-basis.md)
 
 - **Why:** `src/lib/pool/fixPlan.ts` dose factors were tuned to reproduce the design mockup's
   example numbers, not chemistry (`Cal-Hypo 12.7 g per ppm·m³` is ~8× reality). The app currently

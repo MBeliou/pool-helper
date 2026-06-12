@@ -43,6 +43,13 @@
 			"when": 1781256008473,
 			"tag": "0005_split_gallon_units",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "6",
+			"when": 1781258835549,
+			"tag": "0006_ambiguous_hellcat",
+			"breakpoints": true
 		}
 	]
 }

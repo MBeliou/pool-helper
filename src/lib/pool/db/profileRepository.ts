@@ -20,6 +20,7 @@ export interface ProfileValues {
 	temperatureUnit: TemperatureUnit;
 	tester: string;
 	reminderDays: number;
+	disclaimerAcceptedAt: Date | null;
 }
 
 function volumeStringToInteger(volume: string): number | null {
@@ -52,7 +53,8 @@ export async function loadProfile(): Promise<ProfileValues | undefined> {
 		hardnessUnit: profileRow.hardnessUnit,
 		temperatureUnit: profileRow.temperatureUnit,
 		tester: profileRow.tester,
-		reminderDays: profileRow.reminderDays
+		reminderDays: profileRow.reminderDays,
+		disclaimerAcceptedAt: profileRow.disclaimerAcceptedAt
 	};
 }
 
@@ -71,7 +73,8 @@ export async function saveProfile(profileValues: ProfileValues): Promise<void> {
 		hardnessUnit: profileValues.hardnessUnit,
 		temperatureUnit: profileValues.temperatureUnit,
 		tester: profileValues.tester,
-		reminderDays: profileValues.reminderDays
+		reminderDays: profileValues.reminderDays,
+		disclaimerAcceptedAt: profileValues.disclaimerAcceptedAt
 	};
 	// single-statement upsert — keeps the proxy executor on the 'run' path
 	await database

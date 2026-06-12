@@ -17,7 +17,9 @@ export const profileTable = sqliteTable('profile', {
 	hardnessUnit: text('hardness_unit', { enum: HARDNESS_UNITS }).notNull(),
 	temperatureUnit: text('temperature_unit', { enum: TEMPERATURE_UNITS }).notNull(),
 	tester: text('tester').notNull(),
-	reminderDays: integer('reminder_days').notNull().default(3)
+	reminderDays: integer('reminder_days').notNull().default(3),
+	// when the user acknowledged the dosing disclaimer (null = not yet)
+	disclaimerAcceptedAt: integer('disclaimer_accepted_at', { mode: 'timestamp_ms' })
 });
 
 // One row per logged water test; blank readings stay null.

@@ -26,6 +26,7 @@ class AppState {
 	// log flow
 	tester = $state('AquaChek 7-in-1');
 	reminderDays = $state(3);
+	disclaimerAcceptedAt = $state<Date | null>(null);
 
 	// single-flight: the layout and individual pages can all await load()
 	private loadPromise: Promise<void> | undefined;
@@ -68,6 +69,7 @@ class AppState {
 		this.temperatureUnit = profile.temperatureUnit as TemperatureUnit;
 		this.tester = profile.tester;
 		this.reminderDays = profile.reminderDays;
+		this.disclaimerAcceptedAt = profile.disclaimerAcceptedAt;
 	}
 
 	private toProfileValues(): ProfileValues {
@@ -84,8 +86,14 @@ class AppState {
 			hardnessUnit: this.hardnessUnit,
 			temperatureUnit: this.temperatureUnit,
 			tester: this.tester,
-			reminderDays: this.reminderDays
+			reminderDays: this.reminderDays,
+			disclaimerAcceptedAt: this.disclaimerAcceptedAt
 		};
+	}
+
+	async acceptDoseDisclaimer(): Promise<void> {
+		this.disclaimerAcceptedAt = new Date();
+		await this.save();
 	}
 
 	/** One-time migration from the pre-SQLite localStorage persistence. */

@@ -5,11 +5,12 @@
 	import { app } from '$lib/pool/state/app.svelte';
 	import {
 		computeFixPlan,
-		productDose,
+		doseTextFor,
+		repriceAction,
 		type FixAction,
-		type InRangeReading,
-		type ProductOption
+		type InRangeReading
 	} from '$lib/pool/fixPlan';
+	import type { DosingProduct } from '$lib/pool/dosing';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
@@ -41,7 +42,16 @@
 		}));
 		inRange = fixPlan.inRange;
 		loaded = true;
+		if (actions.length > 0 && !app.disclaimerAcceptedAt) disclaimerOpen = true;
 	});
+
+	// dosing disclaimer — shown once, acceptance stored on the profile
+	let disclaimerOpen = $state(false);
+
+	async function acceptDisclaimer() {
+		disclaimerOpen = false;
+		await app.acceptDoseDisclaimer();
+	}
 
 	const pendingCount = $derived(actions.filter((action) => !action.done).length);
 	const planSubtitle = $derived(
@@ -55,17 +65,12 @@
 	// product picker sheet for the action being edited
 	let sheetAction = $state<ActionDisplay | null>(null);
 
-	function pickProduct(product: ProductOption) {
+	function pickProduct(product: DosingProduct) {
 		if (product.disabledReason || !sheetAction) return;
-		sheetAction.productName = product.name;
-		sheetAction.doseText = productDose(
-			product,
-			sheetAction.canonicalDelta,
-			sheetAction.cubicMetres
-		);
-		sheetAction.mathRows = sheetAction.mathRows.map((row, rowIndex) =>
-			rowIndex === 2 ? [product.name, `×${product.dosePerUnitPerCubicMetre} g/m³`] : row
-		);
+		const repriced = repriceAction(sheetAction, product, app.hardnessUnit);
+		sheetAction.productName = repriced.productName;
+		sheetAction.doseText = repriced.doseText;
+		sheetAction.mathRows = repriced.mathRows;
 		sheetAction = null;
 	}
 
@@ -246,6 +251,9 @@
 			{/each}
 		</div>
 		{#if actions.length > 0}
+			<div style="font-size:11.5px;color:{palette.inkMuted};line-height:1.35;margin-top:12px;">
+				Doses are guidance, not gospel — always check your product's label before adding anything.
+			</div>
 			<a
 				href="/results/needs"
 				style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;color:{palette.accent};font-weight:700;font-size:14px;"
@@ -263,6 +271,41 @@
 		>
 	</div>
 	<TabBar />
+
+	{#if disclaimerOpen}
+		<!-- dosing disclaimer (first visit with actions) -->
+		<div style="position:fixed;inset:0;background:rgba(8,20,28,.45);z-index:60;"></div>
+		<div
+			style="position:fixed;left:0;right:0;bottom:0;z-index:70;background:{palette.card};border-radius:26px 26px 0 0;padding:10px 18px calc(var(--safe-bottom) + 14px);box-shadow:0 -8px 30px rgba(0,0,0,.18);"
+		>
+			<div
+				style="width:40px;height:5px;border-radius:999px;background:{palette.line};margin:0 auto 14px;"
+			></div>
+			<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+				<div
+					style="width:36px;height:36px;border-radius:11px;background:{palette.status
+						.high}1f;display:grid;place-items:center;color:{palette.status.high};flex-shrink:0;"
+				>
+					<Icon name="alert" size={19} strokeWidth={1.9} />
+				</div>
+				<div
+					style="font-family:var(--font-display);font-weight:600;font-size:19px;color:{palette.ink};"
+				>
+					Before you dose
+				</div>
+			</div>
+			<div style="font-size:13.5px;color:{palette.inkMuted};line-height:1.45;margin-bottom:14px;">
+				Suggested amounts are guidance based on your readings and pool volume. Product strengths
+				vary — always verify against your product's label, add in stages, and never mix chemicals
+				directly.
+			</div>
+			<button
+				onclick={acceptDisclaimer}
+				style="width:100%;background:{palette.accent};color:#fff;text-align:center;padding:14px;border-radius:14px;border:none;font-family:var(--font-sans);font-weight:700;font-size:15px;"
+				>I understand</button
+			>
+		</div>
+	{/if}
 
 	{#if sheetAction}
 		<!-- scrim -->
@@ -294,7 +337,7 @@
 					{@const selected = sheetAction.productName === product.name}
 					{@const doseLabel = product.disabledReason
 						? product.disabledReason
-						: productDose(product, sheetAction.canonicalDelta, sheetAction.cubicMetres)}
+						: (sheetAction.doseRequest && doseTextFor(sheetAction.doseRequest, product)) || '—'}
 					<button
 						onclick={() => pickProduct(product)}
 						disabled={Boolean(product.disabledReason)}

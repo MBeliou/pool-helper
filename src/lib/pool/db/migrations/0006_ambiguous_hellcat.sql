@@ -1,0 +1,1 @@
+ALTER TABLE `profile` ADD `disclaimer_accepted_at` integer;
