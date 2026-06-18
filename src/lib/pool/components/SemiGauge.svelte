@@ -10,7 +10,8 @@
 		idealHigh,
 		statusColor,
 		track,
-		ticks = false
+		ticks = false,
+		label = ''
 	}: {
 		radius: number;
 		value: string;
@@ -21,9 +22,16 @@
 		statusColor: string;
 		track: string;
 		ticks?: boolean;
+		/** optional parameter name for the screen-reader summary, e.g. "Free chlorine" */
+		label?: string;
 	} = $props();
 
 	const palette = $derived(theme.palette);
+
+	// the SVG text is decorative to AT once role=img is set; surface a spoken summary
+	const ariaLabel = $derived(
+		`${label ? `${label}: ` : ''}${value}${unit ? ` ${unit}` : ''}`.trim()
+	);
 
 	const STROKE_WIDTH = 9;
 	const TICK_COUNT = 10;
@@ -57,23 +65,25 @@
 	height={centerY + 10}
 	viewBox="0 0 {width} {centerY + 10}"
 	style="display:block;overflow:visible;"
+	role="img"
+	aria-label={ariaLabel}
 >
 	<path
 		d="M8 {centerY} A {radius} {radius} 0 0 1 {width - 8} {centerY}"
 		fill="none"
-		stroke={track}
 		stroke-width={STROKE_WIDTH}
 		stroke-linecap="round"
+		style="stroke:{track}"
 	/>
 	{#if idealHigh > idealLow}
 		<path
 			d="M8 {centerY} A {radius} {radius} 0 0 1 {width - 8} {centerY}"
 			fill="none"
-			stroke={palette.idealBand}
 			stroke-width={STROKE_WIDTH}
 			stroke-dasharray="0 {arcLength * idealLow} {arcLength * (idealHigh - idealLow)} {arcLength *
 				2}"
 			stroke-linecap="butt"
+			style="stroke:{palette.idealBand}"
 		/>
 	{/if}
 	{#if ticks}
@@ -83,20 +93,20 @@
 				y1={tick.outerY}
 				x2={tick.innerX}
 				y2={tick.innerY}
-				stroke={palette.inkMuted}
 				stroke-width={tick.major ? 1.8 : 1.2}
 				opacity={tick.major ? 0.55 : 0.35}
 				stroke-linecap="round"
+				style="stroke:{palette.inkMuted}"
 			/>
 		{/each}
 	{/if}
 	<path
 		d="M8 {centerY} A {radius} {radius} 0 0 1 {width - 8} {centerY}"
 		fill="none"
-		stroke={statusColor}
 		stroke-width={STROKE_WIDTH}
 		stroke-dasharray="{arcLength * fraction} {arcLength * 2}"
 		stroke-linecap="round"
+		style="stroke:{statusColor}"
 	/>
 	<text
 		x={centerX}
@@ -105,7 +115,7 @@
 		font-family="var(--font-display)"
 		font-weight="600"
 		font-size={radius * 0.46}
-		fill={palette.ink}>{value}</text
+		style="fill:{palette.ink}">{value}</text
 	>
 	{#if unit}
 		<text
@@ -114,7 +124,7 @@
 			text-anchor="middle"
 			font-family="var(--font-sans)"
 			font-size={radius * 0.2}
-			fill={palette.inkMuted}>{unit}</text
+			style="fill:{palette.inkMuted}">{unit}</text
 		>
 	{/if}
 </svg>

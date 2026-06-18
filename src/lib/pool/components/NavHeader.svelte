@@ -74,7 +74,7 @@
 	>
 		<path
 			d="M0 14 C 60 2 120 24 200 14 C 280 4 340 24 400 12 L400 26 L0 26 Z"
-			fill={palette.page}
+			style="fill:{palette.page}"
 		/>
 	</svg>
 </div>

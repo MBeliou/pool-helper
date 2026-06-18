@@ -7,10 +7,10 @@
 	height="26"
 	viewBox="0 0 24 24"
 	fill="none"
-	stroke={color}
 	stroke-width="1.7"
 	stroke-linecap="round"
 	stroke-linejoin="round"
+	style="stroke:{color}"
 >
 	{#if kind === 'cloudy'}
 		<path d="M7 17.5h9a3.5 3.5 0 0 0 .4-6.98A5.5 5.5 0 0 0 5.6 11 3.2 3.2 0 0 0 6.5 17.5Z" />

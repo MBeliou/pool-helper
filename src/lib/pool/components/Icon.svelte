@@ -23,11 +23,10 @@
 	height={size}
 	viewBox="0 0 24 24"
 	{fill}
-	stroke={color}
 	stroke-width={strokeWidth}
 	stroke-linecap="round"
 	stroke-linejoin="round"
-	style="display:block;{style}"
+	style="display:block;stroke:{color};{style}"
 >
 	<path d={ICON_PATHS[name]} />
 </svg>

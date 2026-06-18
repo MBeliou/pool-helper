@@ -10,7 +10,8 @@
 		bandLowFraction = 0.32,
 		bandHighFraction = 0.62,
 		dots = false,
-		gradientId
+		gradientId,
+		ariaLabel = 'Reading trend over time'
 	}: {
 		series: number[];
 		/** epoch ms per point — when provided, x positions reflect real time gaps */
@@ -23,6 +24,8 @@
 		bandHighFraction?: number;
 		dots?: boolean;
 		gradientId: string;
+		/** screen-reader summary of what the line shows */
+		ariaLabel?: string;
 	} = $props();
 
 	const palette = $derived(theme.palette);
@@ -75,11 +78,13 @@
 	viewBox="0 0 {CHART_WIDTH} {height}"
 	preserveAspectRatio="none"
 	style="display:block;overflow:visible;"
+	role="img"
+	aria-label={ariaLabel}
 >
 	<defs>
 		<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-			<stop offset="0%" stop-color={color} stop-opacity="0.22" />
-			<stop offset="100%" stop-color={color} stop-opacity="0" />
+			<stop offset="0%" stop-opacity="0.22" style="stop-color:{color}" />
+			<stop offset="100%" stop-opacity="0" style="stop-color:{color}" />
 		</linearGradient>
 	</defs>
 	{#if band}
@@ -88,8 +93,8 @@
 			y={bandTop}
 			width={CHART_WIDTH}
 			height={bandBottom - bandTop}
-			fill={palette.status.ok}
 			opacity="0.10"
+			style="fill:{palette.status.ok}"
 		/>
 		{#each [bandTop, bandBottom] as bandY, bandIndex (bandIndex)}
 			<line
@@ -97,11 +102,11 @@
 				y1={bandY}
 				x2={CHART_WIDTH}
 				y2={bandY}
-				stroke={palette.status.ok}
 				stroke-width="1"
 				stroke-dasharray="2 4"
 				opacity="0.5"
 				vector-effect="non-scaling-stroke"
+				style="stroke:{palette.status.ok}"
 			/>
 		{/each}
 	{/if}
@@ -109,21 +114,20 @@
 	<path
 		d={linePath}
 		fill="none"
-		stroke={color}
 		stroke-width="2.5"
 		stroke-linecap="round"
 		stroke-linejoin="round"
 		vector-effect="non-scaling-stroke"
+		style="stroke:{color}"
 	/>
 	{#if dots}
 		<circle
 			cx={lastPoint.x}
 			cy={lastPoint.y}
 			r="4.5"
-			fill={color}
-			stroke={palette.card}
 			stroke-width="2.5"
 			vector-effect="non-scaling-stroke"
+			style="fill:{color};stroke:{palette.card}"
 		/>
 	{/if}
 </svg>
