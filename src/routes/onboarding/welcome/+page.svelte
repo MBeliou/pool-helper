@@ -1,15 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { theme } from '$lib/pool/state/theme.svelte';
-	import { app } from '$lib/pool/state/app.svelte';
 	import Icon from '$lib/pool/components/Icon.svelte';
 
 	const palette = $derived(theme.palette);
-
-	function skipSetup() {
-		app.finishOnboarding();
-		goto('/');
-	}
 </script>
 
 <div
@@ -36,7 +30,7 @@
 		<div
 			style="font-family:var(--font-display);font-weight:600;font-size:38px;letter-spacing:-1px;line-height:1.0;"
 		>
-			Pool<br />Handler
+			My<br />Pool
 		</div>
 		<div style="font-size:17px;opacity:0.9;margin-top:16px;line-height:1.4;max-width:280px;">
 			Test, know, and fix your water in minutes — no guesswork, no pool-store trips.
@@ -48,10 +42,8 @@
 			style="width:100%;background:#fff;color:{palette.accent};text-align:center;padding:16px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;"
 			>Set up my pool →</button
 		>
-		<button
-			onclick={skipSetup}
-			style="width:100%;text-align:center;margin-top:16px;font-size:14px;opacity:0.85;font-weight:600;background:none;border:none;color:#fff;font-family:var(--font-sans);"
-			>I'll do it later</button
-		>
+		<div style="text-align:center;margin-top:14px;font-size:13px;opacity:0.8;font-weight:500;">
+			Takes about a minute · everything stays on your device
+		</div>
 	</div>
 </div>

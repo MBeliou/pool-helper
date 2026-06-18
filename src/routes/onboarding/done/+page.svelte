@@ -14,9 +14,11 @@
 		['Filter', app.filter]
 	]);
 
+	// Setup is complete and persisted here; the premium step that follows is a
+	// pure upsell, so quitting on it still leaves the user fully onboarded.
 	function finishSetup() {
 		app.finishOnboarding();
-		goto('/');
+		goto('/onboarding/premium');
 	}
 </script>
 
@@ -65,7 +67,7 @@
 		<button
 			onclick={finishSetup}
 			style="width:100%;background:{palette.accent};color:#fff;text-align:center;padding:16px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;"
-			>Go to my pool →</button
+			>Continue →</button
 		>
 	</div>
 </div>

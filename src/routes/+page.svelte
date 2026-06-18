@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
+	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { gaugeReadings, type GaugeReading } from '$lib/pool/chemistry';
 	import { computeFixPlan, type FixAction } from '$lib/pool/fixPlan';
 	import { formatShortDate, formatTimeCompact, isToday } from '$lib/pool/format';
@@ -54,7 +55,15 @@
 	<div class="scroll">
 		<NavHeader large title={app.name} sub={testedSubtitle}>
 			{#snippet right()}
-				{#if statusPillText}
+				{#if !billing.isPro}
+					<!-- persistent, high-visibility path to upgrade (replaces the status pill for free users) -->
+					<button
+						onclick={() => billing.presentPaywall()}
+						style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#FFD56B,#F4A623);color:#0F2A36;border:none;padding:8px 13px;border-radius:999px;font-family:var(--font-sans);font-weight:800;font-size:12.5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.18);"
+					>
+						<Icon name="spark" size={14} color="#0F2A36" strokeWidth={2.2} />Get Pro
+					</button>
+				{:else if statusPillText}
 					<div
 						style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;padding:7px 12px;border-radius:999px;font-weight:700;font-size:12.5px;white-space:nowrap;"
 					>
@@ -88,6 +97,7 @@
 							radius={42}
 							value={reading.value}
 							unit={reading.unit}
+							label={reading.label}
 							fraction={reading.fraction}
 							idealLow={reading.idealLowFraction}
 							idealHigh={reading.idealHighFraction}

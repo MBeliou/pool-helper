@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
+	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { daysSince, formatShortDate, relativeAge } from '$lib/pool/format';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -20,6 +22,18 @@
 		loaded = true;
 	});
 
+	// Diagnose-by-symptom is a Pool Doctor Pro feature. Enforcement is native-only:
+	// on web there's no billing, so it stays an open preview for development/design.
+	async function openDiagnose() {
+		await billing.configure(); // ensure entitlement has hydrated before gating
+		if (billing.isPro || !billing.supported) {
+			goto('/care/diagnose/1');
+			return;
+		}
+		await billing.presentPaywallIfNeeded();
+		if (billing.isPro) goto('/care/diagnose/1');
+	}
+
 	const activeCount = $derived(issues.filter((issue) => !issue.resolvedAt).length);
 
 	function issueAgeText(issue: IssueRow): string {
@@ -34,22 +48,31 @@
 <div class="screen" style="background:{palette.page};">
 	<NavHeader large title="Pool care" sub="Issues you're working through" />
 	<div class="scroll" style="padding:16px 18px 0;">
-		<!-- diagnose CTA -->
-		<a
-			href="/care/diagnose/1"
-			style="display:flex;align-items:center;gap:13px;background:{palette.accent};border-radius:18px;padding:15px 16px;margin-bottom:20px;"
+		<!-- diagnose CTA (Pro feature) -->
+		<button
+			onclick={openDiagnose}
+			style="width:100%;text-align:left;font-family:var(--font-sans);display:flex;align-items:center;gap:13px;background:{palette.accent};border:none;border-radius:18px;padding:15px 16px;margin-bottom:20px;"
 		>
 			<div
 				style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:grid;place-items:center;color:#fff;flex-shrink:0;"
 			>
 				<Icon name="shield" size={22} strokeWidth={1.8} />
 			</div>
-			<div style="flex:1;">
-				<div style="font-weight:800;font-size:16px;color:#fff;">Diagnose an issue</div>
+			<div style="flex:1;min-width:0;">
+				<div style="display:flex;align-items:center;gap:8px;">
+					<span style="font-weight:800;font-size:16px;color:#fff;">Diagnose an issue</span>
+					{#if !billing.isPro}
+						<span
+							style="display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#FFD56B,#F4A623);color:#0F2A36;font-weight:800;font-size:10px;letter-spacing:0.4px;padding:2px 7px;border-radius:999px;"
+						>
+							<Icon name="spark" size={10} color="#0F2A36" strokeWidth={2.4} />PRO
+						</span>
+					{/if}
+				</div>
 				<div style="font-size:12.5px;color:rgba(255,255,255,.85);">Cloudy, green, irritation…</div>
 			</div>
-			<Icon name="plus" size={22} color="#fff" strokeWidth={2.2} />
-		</a>
+			<Icon name={billing.isPro ? 'plus' : 'chevron'} size={22} color="#fff" strokeWidth={2.2} />
+		</button>
 		<div
 			style="font-family:var(--font-display);font-weight:600;font-size:16px;color:{palette.ink};margin-bottom:11px;"
 		>

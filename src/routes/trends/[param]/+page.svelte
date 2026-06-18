@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
+	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { parameterByKey, type ParameterKey } from '$lib/pool/chemistry';
 	import { buildTrends, type ParameterTrend } from '$lib/pool/trends';
 	import { formatShortDate } from '$lib/pool/format';
@@ -16,18 +17,21 @@
 	const parameterKey = $derived((page.params.param ?? 'ph') as ParameterKey);
 	const parameter = $derived(parameterByKey[parameterKey] ?? parameterByKey.ph);
 
-	const ranges: { label: string; days: number }[] = [
-		{ label: '7d', days: 7 },
+	// Longer windows are a Pool Doctor Pro feature; free users get the 14-day view.
+	// Enforcement is native-only — the web preview leaves every range unlocked.
+	const ranges: { label: string; days: number; free?: boolean }[] = [
+		{ label: '14d', days: 14, free: true },
 		{ label: '30d', days: 30 },
 		{ label: '90d', days: 90 },
 		{ label: '1y', days: 365 }
 	];
-	let selectedRange = $state('30d');
+	const proUnlocked = $derived(billing.isPro || !billing.supported);
+	let selectedRange = $state('14d');
 	let trend = $state<ParameterTrend | undefined>(undefined);
 	let loaded = $state(false);
 
 	async function refreshTrend() {
-		const days = ranges.find((range) => range.label === selectedRange)?.days ?? 30;
+		const days = ranges.find((range) => range.label === selectedRange)?.days ?? 14;
 		const tests = await getTestsSince(days);
 		trend = buildTrends(tests, {
 			hardnessUnit: app.hardnessUnit,
@@ -38,10 +42,17 @@
 
 	onMount(async () => {
 		await app.load();
+		await billing.configure();
+		if (proUnlocked) selectedRange = '30d';
 		await refreshTrend();
 	});
 
-	function pickRange(rangeLabel: string) {
+	async function pickRange(rangeLabel: string) {
+		const range = ranges.find((option) => option.label === rangeLabel);
+		if (range && !range.free && !proUnlocked) {
+			await billing.presentPaywall();
+			if (!billing.isPro) return; // declined — stay on the free window
+		}
 		selectedRange = rangeLabel;
 		refreshTrend();
 	}
@@ -92,13 +103,20 @@
 		>
 			{#each ranges as range (range.label)}
 				{@const selected = range.label === selectedRange}
+				{@const locked = !range.free && !proUnlocked}
 				<button
 					onclick={() => pickRange(range.label)}
-					style="flex:1;text-align:center;padding:8px;border-radius:9px;border:none;font-family:var(--font-sans);font-size:13px;font-weight:{selected
+					style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;padding:8px;border-radius:9px;border:none;font-family:var(--font-sans);font-size:13px;font-weight:{selected
 						? 700
 						: 600};background:{selected ? palette.accent : 'transparent'};color:{selected
 						? '#fff'
-						: palette.inkMuted};">{range.label}</button
+						: palette.inkMuted};"
+					>{range.label}{#if locked}<Icon
+							name="spark"
+							size={11}
+							color={selected ? '#fff' : palette.inkMuted}
+							strokeWidth={2.2}
+						/>{/if}</button
 				>
 			{/each}
 		</div>
@@ -118,6 +136,7 @@
 					bandHighFraction={trend.idealHighFraction}
 					dots
 					gradientId="detail-{trend.key}"
+					ariaLabel="{parameter.shortLabel} trend over time"
 				/>
 				<div
 					style="display:flex;justify-content:space-between;font-size:10.5px;color:{palette.inkMuted};margin-top:6px;"
