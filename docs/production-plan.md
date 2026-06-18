@@ -237,8 +237,10 @@ fr catalog) remain deferred per the decision.
 - **Done 2026-06-18:** `playwright.config.ts` webServer now runs
   `pnpm db:copy-wasm && pnpm build && pnpm preview` (jeep-sqlite needs `/assets/sql-wasm.wasm`).
   `e2e/` specs cover: wasm asset 200, onboarding gate redirect, onboarding completion + persistence
-  across reload, empty log/care states, and `/more` export + settings nav. `pnpm test:e2e` → 5 green.
-  Expand later (log-entry → results → journal, fix-plan product switching) + add the CI e2e job (#17).
+  across reload, empty log/care states, `/more` export + settings nav, the **log → results → journal
+  flow (incl. a comma-decimal reading persisting as 7.4)**, and an **out-of-range reading producing a
+  fix-plan action** (exercises the dosing/volume pipeline). `pnpm test:e2e` → 7 green.
+  Remaining: fix-plan product-switching interaction + the CI e2e job (#17).
 - **Why (original):** all Playwright verification so far was ad-hoc and deleted.
 - **Do:** `e2e/` specs using the patterns already proven in-session: onboarding completion +
   persistence; log flow (tester → entry with per-row units → journal + detail); fix-plan product
