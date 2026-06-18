@@ -1,22 +1,24 @@
 // Shared date/time display helpers
+import { localeTag } from './localeFormat';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "8:30am" */
+/** "8:30am" (en) / "08:30" (fr) — compact, no space */
 export function formatTimeCompact(date: Date): string {
 	return date
-		.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+		.toLocaleTimeString(localeTag(), { hour: 'numeric', minute: '2-digit' })
 		.toLowerCase()
 		.replace(' ', '');
 }
 
 /** "May 28" */
 export function formatShortDate(date: Date): string {
-	return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	return date.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' });
 }
 
 /** "Mon · 9:00am" */
 export function formatWeekdayTime(date: Date): string {
-	const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+	const weekday = date.toLocaleDateString(localeTag(), { weekday: 'short' });
 	return `${weekday} · ${formatTimeCompact(date)}`;
 }
 

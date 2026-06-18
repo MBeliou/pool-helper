@@ -2,6 +2,7 @@
 	import { theme } from '../state/theme.svelte';
 	import { LITRES_PER_VOLUME_UNIT, type VolumeUnit } from '../units';
 	import { dimensionUnitFor, estimatePoolVolumeLitres } from '../volumeCalculator';
+	import { localeTag } from '../localeFormat';
 
 	let {
 		shape,
@@ -50,13 +51,13 @@
 	const estimateText = $derived.by(() => {
 		if (estimatedLitres === null) return null;
 		const inVolumeUnit = Math.round(estimatedLitres / LITRES_PER_VOLUME_UNIT[volumeUnit]);
-		return `${inVolumeUnit.toLocaleString('en-US')} ${volumeUnit}`;
+		return `${inVolumeUnit.toLocaleString(localeTag())} ${volumeUnit}`;
 	});
 
 	function apply() {
 		if (estimatedLitres === null) return;
 		const inVolumeUnit = Math.round(estimatedLitres / LITRES_PER_VOLUME_UNIT[volumeUnit]);
-		onapply(inVolumeUnit.toLocaleString('en-US'));
+		onapply(inVolumeUnit.toLocaleString(localeTag()));
 	}
 </script>
 

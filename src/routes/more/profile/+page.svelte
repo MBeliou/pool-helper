@@ -3,6 +3,7 @@
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
 	import { VOLUME_UNITS } from '$lib/pool/units';
+	import { localeTag } from '$lib/pool/localeFormat';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import ShapeGrid from '$lib/pool/components/ShapeGrid.svelte';
@@ -59,7 +60,7 @@
 
 	function formatVolume() {
 		const digits = app.volume.replace(/[^0-9]/g, '');
-		if (digits) app.volume = Number(digits).toLocaleString('en-US');
+		if (digits) app.volume = Number(digits).toLocaleString(localeTag());
 		app.save();
 	}
 

@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { HardnessUnit, TemperatureUnit, VolumeUnit } from '../units';
+import { localeTag } from '../localeFormat';
 import { database } from './connection';
 import { profileTable, type ProfileRow } from './schema';
 
@@ -29,7 +30,7 @@ function volumeStringToInteger(volume: string): number | null {
 }
 
 function volumeIntegerToString(volume: number | null): string {
-	return volume === null ? '' : volume.toLocaleString('en-US');
+	return volume === null ? '' : volume.toLocaleString(localeTag());
 }
 
 export async function loadProfile(): Promise<ProfileValues | undefined> {

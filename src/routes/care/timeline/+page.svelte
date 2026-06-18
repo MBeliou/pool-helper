@@ -5,6 +5,7 @@
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
 	import { daysSince, formatShortDate, formatWeekdayTime } from '$lib/pool/format';
+	import { localeTag } from '$lib/pool/localeFormat';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
@@ -35,7 +36,7 @@
 	const headerSubtitle = $derived.by(() => {
 		if (!issue) return '';
 		if (issue.resolvedAt) return `Resolved ${formatShortDate(issue.resolvedAt)}`;
-		const startedWeekday = issue.startedAt.toLocaleDateString('en-US', { weekday: 'short' });
+		const startedWeekday = issue.startedAt.toLocaleDateString(localeTag(), { weekday: 'short' });
 		const dayCount = `Day ${daysSince(issue.startedAt) + 1}${issue.expectedDays ? ` of ~${issue.expectedDays}` : ''}`;
 		return `Started ${startedWeekday} · ${dayCount}`;
 	});

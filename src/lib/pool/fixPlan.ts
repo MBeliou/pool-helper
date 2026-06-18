@@ -6,6 +6,7 @@
 // ──────────────────────────────────────────────────────────────────────
 import type { TestRow } from './db/schema';
 import type { IconName } from './icons';
+import { localeTag } from './localeFormat';
 import { LITRES_PER_VOLUME_UNIT, type HardnessUnit, type VolumeUnit } from './units';
 import {
 	PARAMETERS,
@@ -104,7 +105,7 @@ function mathRowsFor(
 	const { request, parameter, status } = action;
 	const delta = Math.abs(request.targetValue - request.currentValue);
 	const rows: [string, string][] = [
-		['Pool volume', `${request.poolVolumeLitres.toLocaleString('en-US')} L`],
+		['Pool volume', `${request.poolVolumeLitres.toLocaleString(localeTag())} L`],
 		[
 			`${status === 'low' ? 'Raise' : 'Lower'} ${parameter.shortLabel} by`,
 			`${formatDisplayValue(parameter, delta, displayUnits)}${unitText ? ` ${unitText}` : ''}`

@@ -2,6 +2,7 @@
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
 	import { VOLUME_UNITS } from '$lib/pool/units';
+	import { localeTag } from '$lib/pool/localeFormat';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
 	import VolumeCalculator from '$lib/pool/components/VolumeCalculator.svelte';
@@ -25,7 +26,7 @@
 
 	function formatVolume() {
 		const digits = app.volume.replace(/[^0-9]/g, '');
-		if (digits) app.volume = Number(digits).toLocaleString('en-US');
+		if (digits) app.volume = Number(digits).toLocaleString(localeTag());
 		app.save();
 	}
 </script>
