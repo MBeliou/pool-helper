@@ -8,28 +8,31 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
+	import { billing } from '$lib/pool/billing/revenuecat.svelte';
+	import { applyStatusBar, hideSplash } from '$lib/pool/native/systemUi';
 	import Icon from '$lib/pool/components/Icon.svelte';
 
 	let { children } = $props();
 	const palette = $derived(theme.palette);
 
 	onMount(() => {
+		// light status-bar content over the gradient header (native; web no-op)
+		applyStatusBar();
 		(async () => {
 			await app.load(); // initializes SQLite + runs migrations before the redirect decision
+			// webview now has content (ready or the error screen) → drop the native splash
+			await hideSplash();
 			if (!app.onboarded && !page.url.pathname.startsWith('/onboarding')) {
 				goto('/onboarding/welcome', { replaceState: true });
 			}
 		})();
-		const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		theme.dark = colorSchemeQuery.matches;
-		const onColorSchemeChange = (event: MediaQueryListEvent) => (theme.dark = event.matches);
-		colorSchemeQuery.addEventListener('change', onColorSchemeChange);
-		return () => colorSchemeQuery.removeEventListener('change', onColorSchemeChange);
+		// Billing is non-critical: configure in the background so a RevenueCat
+		// outage can never block storage init or the first paint.
+		billing.configure();
 	});
 
-	$effect(() => {
-		document.body.style.background = theme.palette.page;
-	});
+	// Theme is pure CSS (prefers-color-scheme) now — no JS needed; body background
+	// comes from `body { background: var(--page) }` in pool.css.
 
 	// native-like screen transitions (no-ops where the View Transitions API is missing)
 	onNavigate((navigation) => {
