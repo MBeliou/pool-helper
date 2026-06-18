@@ -5,6 +5,11 @@ cold. File paths refer to the current layout (`src/lib/pool/**`, `src/routes/**`
 
 Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Done when** (acceptance).
 
+> **Monetization / onboarding gate / premium upsell:** tracked separately in
+> `docs/monetization-plan.md` (added 2026-06-17). The onboarding skip removal, the end-of-onboarding
+> premium screen, and the Home "Get Pro" path shipped there; remaining work is RevenueCat dashboard
+> setup, the real API key, and the feature-gating product decision.
+
 ---
 
 ## P0 — Blockers: wrong or unsafe to ship
@@ -38,9 +43,16 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   UK → `imp gal`; conversion table in `volumeToCubicMetres`.
 - **Done when:** UK preset + 10,000 imp gal computes 45.46 m³ in the fix-plan math rows.
 
-### 3. App identity
+### 3. App identity — 🟡 config done 2026-06-18 (icon artwork pending)
 
-- **Why:** bundle id is `com.example.app`, display name "pool-helper", scaffold icon, no
+- **Done 2026-06-18:** bundle id `care.mypool.app` (reverse-DNS of the owned domain `mypool.care`),
+  display name **"My Pool"** (`capacitor.config.ts`, `Info.plist` `CFBundleDisplayName`,
+  `project.pbxproj` `PRODUCT_BUNDLE_IDENTIFIER`), `MARKETING_VERSION = 1.0.0` /
+  `CURRENT_PROJECT_VERSION = 1`, launch-screen background set to brand blue `#0B5A92`, in-app brand
+  copy updated ("My Pool", "My Pool Pro"). **Version-bump rule:** bump `CURRENT_PROJECT_VERSION`
+  every TestFlight upload; bump `MARKETING_VERSION` per public release.
+- **Still needs Maxime:** 1024px app-icon master for `ios/App/App/Assets.xcassets` (artwork).
+- **Why (original):** bundle id is `com.example.app`, display name "pool-helper", scaffold icon, no
   branded launch screen, version 1.0/1 unmanaged.
 - **Do:** pick a reverse-DNS id (e.g. `com.fumo.poolhandler`) in `capacitor.config.ts` **and**
   Xcode project settings (changing appId requires `npx cap sync` + checking
@@ -71,6 +83,11 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   in dev). `design-reference/` is not under `src` and never bundles — keep for reference.
 - **Done when:** `build/` contains no demo/story assets; `/more` in a production build has no
   Developer group; dev server still shows it.
+- **Dev utilities (added 2026-06-18, DEV-only):** the Developer group now also has **Log one sample
+  test**, **Replay onboarding (keep data)** (clears the onboarded flag → welcome flow), and
+  **Delete all my data & restart** (`wipeAllData()` + cancel reminders + clear legacy localStorage +
+  `app.retryLoad()` → fresh-install state → onboarding replays). All inside `{#if import.meta.env.DEV}`,
+  so still stripped from production.
 
 ### 6. Database failure UX — ✅ done 2026-06-12
 
@@ -87,9 +104,14 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 
 ## P1 — Product gaps: looks done, isn't wired
 
-### 7. Diagnose wizard persists nothing
+### 7. Diagnose wizard persists nothing — ✅ persistence done 2026-06-18
 
-- **Why:** symptoms/answers/causes are page state; "Start a fix plan →" navigates to the
+- **Done 2026-06-18:** new `diagnoses` table (migration `0007_hot_electro`), `diagnosesRepository.ts`,
+  and `createIssueWithPlan()` in `issuesRepository.ts`. Wizard step 4 ("Start a fix plan") now writes
+  the diagnosis + an `issues` row + initial `issue_events` from the (still placeholder) top cause,
+  then navigates to `/care/timeline?issue=<id>`. The static causes/ranking stay placeholder until the
+  resolution pipeline supplies real ranking (Maxime's separate workstream).
+- **Why (original):** symptoms/answers/causes are page state; "Start a fix plan →" navigates to the
   timeline without creating anything. This is the input surface for the resolution pipeline.
 - **Do (coordinate with pipeline work):** new `diagnoses` table (id, startedAt, symptoms JSON,
   answers JSON) written at step 4; "Start a fix plan" inserts an `issues` row (title from top
@@ -107,9 +129,14 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 `sourceTestId`column on`actions` later for traceability.
 - **Done when:** completing the plan produces journal entries on `/log`.
 
-### 9. Real reminders (local notifications)
+### 9. Real reminders (local notifications) — ✅ code done 2026-06-18 (verify on device)
 
-- **Why:** `reminderDays` is stored (`profile.reminder_days`) but nothing fires.
+- **Done 2026-06-18:** added `@capacitor/local-notifications`; `src/lib/pool/reminders.ts`
+  (`requestRemindersPermission`, `rescheduleTestReminder` = cancel + schedule at
+  `latestTest.testedAt + reminderDays` under a fixed id, web no-op). Rescheduled after every test
+  insert (`log/entry`) and on cadence change / first enable (`more/reminders`, which now has a real
+  permission toggle replacing the "coming soon" note). Needs `cap sync` + a simulator check.
+- **Why (original):** `reminderDays` is stored (`profile.reminder_days`) but nothing fires.
 - **Do:** add `@capacitor/local-notifications` (official plugin, SPM-ready; `cap sync` then
   verify `CapApp-SPM/Package.swift`); permission request from `/more/reminders` on first enable;
   schedule logic in a new `src/lib/pool/reminders.ts`: cancel-and-reschedule a single repeating
@@ -144,7 +171,22 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   `/trends/[param]` already use real dates.
 - **Done when:** the problem-pool seed (uneven cadence) shows visibly uneven point spacing.
 
-### 13. i18n decision (recommend: actually use paraglide)
+### 13. i18n decision — ✅ DECIDED 2026-06-18, see `docs/i18n-plan.md`
+
+Decision: keep Paraglide (reconfigure for the `file://` Capacitor build), do the small infra +
+formatting/parser fix now, defer mass string extraction until a French launch is committed. The doc
+has the corrected, adversarially-reviewed plan (Design B reactive rune, the U+202F volume-parsing
+trap, what to strip). Original framing below.
+
+**Phase 1 done 2026-06-18 (formatting only):** new `src/lib/pool/localeFormat.ts` (`localeTag()`
+from Paraglide `getLocale()`) replaces all 9 hardcoded `'en-US'` formatter sites
+(`format.ts`, `fixPlan.ts`, `VolumeCalculator.svelte`, `profileRepository.ts`,
+`care/timeline`, `more/profile`, `onboarding/size`). Behaviour-preserving while the locale resolves
+to `en`; ready for real fr formatting once Phase 0 lands. **Phase 0** (reactive-rune locale +
+`@capacitor/preferences` persistence + routing-scaffold strip) and **Phase 2–3** (string extraction,
+fr catalog) remain deferred per the decision.
+
+#### original note
 
 - **Why:** paraglide (en/fr) is scaffolded but every string is hardcoded; all date/number
   formatting is `'en-US'`.
@@ -155,9 +197,13 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   before copy multiplies further.
 - **Done when:** language switch renders French on all screens, or paraglide is fully removed.
 
-### 14. Data export
+### 14. Data export — ✅ done 2026-06-18
 
-- **Why:** users have no way to back up or move their data.
+- **Done 2026-06-18:** `src/lib/pool/db/exportData.ts` (`exportAllData()` builds a JSON bundle of
+  profile/tests/actions/issues+events/diagnoses from the repos, uniform web+native) and
+  `src/lib/pool/dataExport.ts` (`shareExport()` — native writes the file via `@capacitor/filesystem`
+  then opens `@capacitor/share`; web downloads a Blob). "Export my data" row added to `/more`.
+- **Why (original):** users have no way to back up or move their data.
 - **Do:** `/more` row "Export data" → native: `databaseConnection.exportToJson('full')` + share
   sheet via `@capacitor/share`; web: download a Blob. Import is out of scope for v1.
 - **Done when:** the share sheet offers a JSON containing profile, tests, actions, issues.
@@ -166,7 +212,15 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 
 ## P2 — Quality engineering
 
-### 15. Unit tests for the pure modules
+### 15. Unit tests for the pure modules — ✅ done 2026-06-18
+
+- Done: `units`, `dosing`/`fixPlan` factors, `volumeCalculator`, **`chemistry`** (status boundaries,
+  scaleFraction, testValue normalization, gaugeReadings), **`trends`** (direction thresholds,
+  series/stats, unit-independence), **`format`** (date/age helpers), and **`db/migrations`**
+  (`migrations.spec.ts`: a fake `SQLiteDBConnection` proves ordering, idempotency, and rollback +
+  rethrow against the real bundled migrations). `pnpm test:unit` → 69 green.
+
+#### original note
 
 - **Why:** zero committed tests; the math is exactly the code that must not regress.
 - **Do (vitest node project already configured):** `src/lib/pool/*.spec.ts` covering:
@@ -177,9 +231,14 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   `SQLiteDBConnection`: ordering, idempotency, rollback on failure).
 - **Done when:** `pnpm test:unit -- --run` green with meaningful coverage of those files.
 
-### 16. Committed e2e suite
+### 16. Committed e2e suite — ✅ initial suite done 2026-06-18
 
-- **Why:** all Playwright verification so far was ad-hoc and deleted.
+- **Done 2026-06-18:** `playwright.config.ts` webServer now runs
+  `pnpm db:copy-wasm && pnpm build && pnpm preview` (jeep-sqlite needs `/assets/sql-wasm.wasm`).
+  `e2e/` specs cover: wasm asset 200, onboarding gate redirect, onboarding completion + persistence
+  across reload, empty log/care states, and `/more` export + settings nav. `pnpm test:e2e` → 5 green.
+  Expand later (log-entry → results → journal, fix-plan product switching) + add the CI e2e job (#17).
+- **Why (original):** all Playwright verification so far was ad-hoc and deleted.
 - **Do:** `e2e/` specs using the patterns already proven in-session: onboarding completion +
   persistence; log flow (tester → entry with per-row units → journal + detail); fix-plan product
   switching; `/more` settings round-trips; empty states; legacy localStorage import. Run against
@@ -187,45 +246,65 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
   `playwright.config.ts` webServer.
 - **Done when:** `pnpm test:e2e` passes headless from a clean checkout.
 
-### 17. CI
+### 17. CI — ✅ done 2026-06-17
 
-- **Do:** GitHub Actions: pnpm cache → `pnpm install` → `pnpm check` → `pnpm lint` →
-  unit tests → `pnpm build` → e2e. Later: macOS job for `xcodebuild -scheme App` smoke build.
-- **Done when:** PRs get a green/red check.
+- `.github/workflows/ci.yml`: pnpm 10 + Node 22 (pnpm cache) → `pnpm install --frozen-lockfile`
+  → `pnpm check` → `pnpm lint` → `vitest run` → `pnpm build`. All steps verified green locally.
+- Still TODO: add an e2e job once item #16 lands; later a macOS job for `xcodebuild -scheme App`.
 
 ---
 
 ## P3 — iOS polish & App Store admin
 
-### 18. Lock to portrait
+### 18. Lock to portrait — ✅ done 2026-06-17
 
-- **Do:** `Info.plist` `UISupportedInterfaceOrientations` → portrait only (layouts are
-  portrait-only; landscape currently renders broken).
+- `ios/App/App/Info.plist`: iPhone `UISupportedInterfaceOrientations` → Portrait only; iPad →
+  Portrait + PortraitUpsideDown. (Layouts are portrait-only; landscape rendered broken.)
 
-### 19. Status bar & splash
+### 19. Status bar & splash — ✅ done 2026-06-18 (verify on device)
 
-- **Do:** `@capacitor/status-bar`: set light-content over the gradient header, sync with
+- **Done 2026-06-18:** added `@capacitor/status-bar` + `@capacitor/splash-screen`;
+  `SplashScreen { launchAutoHide:false, backgroundColor:'#0B5A92' }` in `capacitor.config.ts`;
+  `src/lib/pool/native/systemUi.ts` (`hideSplash`, `applyStatusBar`). The layout applies light
+  status-bar content (every screen sits under the gradient `NavHeader`) and hides the native splash
+  once `app.load()` resolves. Needs `cap sync` + a simulator check.
+- **Do (original):** `@capacitor/status-bar`: set light-content over the gradient header, sync with
   `theme.dark`; `@capacitor/splash-screen` configured with the brand gradient so launch →
   webview handoff is seamless.
 
-### 20. Accessibility pass
+### 20. Accessibility pass — 🟡 partial 2026-06-18
 
-- **Do:** VoiceOver labels on icon-only buttons (mostly present — audit gauges/charts with
+- **Done 2026-06-18:** `SemiGauge` and `HChart` now expose `role="img"` + an `aria-label` summary
+  (gauge: "Free chlorine: 1.2 ppm"; charts: a trend/sparkline label passed from home/trends).
+  Audited icon-only controls — back/close/tab/coming-soon controls already carry labels or text.
+- **Still deferred (note):** iOS Dynamic Type — all sizes are fixed px; needs a type-scale pass.
+  Contrast of translucent white pills over the gradient flagged for a visual review.
+- **Do (original):** VoiceOver labels on icon-only buttons (mostly present — audit gauges/charts with
   `aria-label` summaries); contrast check the translucent white pills on gradient; consider a
   type scale that honours iOS Dynamic Type (all sizes are fixed px today — minimum: test at
   larger accessibility sizes and fix overflow).
 
-### 21. App Store package
+### 21. App Store package — 🟡 partial 2026-06-18
 
-- **Do:** `PrivacyInfo.xcprivacy` (declare UserDefaults/file-timestamp API usage per plugin
+- **Done 2026-06-18:** `ios/App/App/PrivacyInfo.xcprivacy` (no tracking/collection; required-reason
+  declarations for UserDefaults `CA92.1`, file-timestamp `C617.1`, disk-space `E174.1`) and
+  `ITSAppUsesNonExemptEncryption = false` in `Info.plist` (with a verify-before-submit comment).
+  **Manual Xcode step:** add `PrivacyInfo.xcprivacy` to the App target's membership (drag into the
+  project / check Target Membership) so it ships in the bundle.
+- **Still needs Maxime (external):** privacy-policy URL (state "data never leaves the device"),
+  App Store screenshots, TestFlight internal round, and confirm the SQLCipher export-compliance answer.
+- **Do (original):** `PrivacyInfo.xcprivacy` (declare UserDefaults/file-timestamp API usage per plugin
   guidance); privacy policy URL (data never leaves device — say so); encryption export
   compliance: the SQLite plugin embeds SQLCipher even with `'no-encryption'` — research the
   correct `ITSAppUsesNonExemptEncryption` answer before submission; screenshots; TestFlight
   internal testing round.
 
-### 22. Crash/error reporting decision
+### 22. Crash/error reporting decision — ✅ DECIDED 2026-06-18: skip for v1
 
-- **Do:** decide Sentry (`@sentry/capacitor`) vs nothing for v1. If added: wire to the item-6
+- **Decision (2026-06-18):** ship v1 with **no** crash-reporting SDK. Rely on the item-6 DB error
+  screen (`+layout.svelte`) plus `console.error` logging already in place. Revisit Sentry
+  (`@sentry/capacitor`) post-launch once there's real-user volume and a privacy-policy URL exists.
+- **Do (original):** decide Sentry (`@sentry/capacitor`) vs nothing for v1. If added: wire to the item-6
   error path and `window.onerror`; respect privacy policy. If skipped: record the decision here.
 
 ---
