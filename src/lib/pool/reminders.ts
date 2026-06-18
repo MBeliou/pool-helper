@@ -66,3 +66,31 @@ export async function cancelTestReminder(): Promise<void> {
 	const { LocalNotifications } = await loadPlugin();
 	await LocalNotifications.cancel({ notifications: [{ id: REMINDER_ID }] });
 }
+
+// Separate id from the real reminder so firing a test never clobbers it.
+const TEST_REMINDER_ID = 999;
+
+/**
+ * Dev/QA helper: schedule a one-off notification ~5s out so delivery can be
+ * verified without waiting for the real cadence. Returns false if not granted
+ * (caller can prompt) or on web. Note: iOS usually hides the banner while the
+ * app is foregrounded — background or lock the device to see it arrive.
+ */
+export async function sendTestNotificationNow(): Promise<boolean> {
+	if (!isNative()) return false;
+	const { LocalNotifications } = await loadPlugin();
+	let status = await LocalNotifications.checkPermissions();
+	if (status.display !== 'granted') status = await LocalNotifications.requestPermissions();
+	if (status.display !== 'granted') return false;
+	await LocalNotifications.schedule({
+		notifications: [
+			{
+				id: TEST_REMINDER_ID,
+				title: 'Test notification',
+				body: 'If you can see this, reminders are working. 🏊',
+				schedule: { at: new Date(Date.now() + 5000) }
+			}
+		]
+	});
+	return true;
+}

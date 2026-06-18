@@ -17,8 +17,9 @@
 		seedSingleTest,
 		wipeAllData
 	} from '$lib/pool/db/demoData';
-	import { cancelTestReminder } from '$lib/pool/reminders';
+	import { cancelTestReminder, sendTestNotificationNow } from '$lib/pool/reminders';
 	import { shareExport } from '$lib/pool/dataExport';
+	import { formatNumber } from '$lib/pool/localeFormat';
 
 	const palette = $derived(theme.palette);
 
@@ -85,6 +86,14 @@
 		await seed();
 		testCount = await countTests();
 		seedStatus = label;
+	}
+
+	// Fire a one-off notification ~5s out to verify on-device delivery.
+	async function fireTestNotification() {
+		const scheduled = await sendTestNotificationNow();
+		seedStatus = scheduled
+			? 'Notification in ~5s · background the app to see it'
+			: 'Allow notifications first (Reminders screen)';
 	}
 
 	// Re-run onboarding without losing data: clear the onboarded flag and send the
@@ -165,7 +174,7 @@
 					<div>
 						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">{app.name}</div>
 						<div style="font-size:11.5px;color:{palette.inkMuted};">
-							{app.volume}
+							{app.volume === null ? '—' : formatNumber(app.volume)}
 							{volumeUnitShort[app.volumeUnit] ?? app.volumeUnit} · active
 						</div>
 					</div>
@@ -348,6 +357,20 @@
 							</div>
 						</div>
 						<Icon name="plus" size={15} color={palette.inkMuted} strokeWidth={2} />
+					</button>
+					<button
+						onclick={fireTestNotification}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+					>
+						<div>
+							<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
+								Send a test notification (5s)
+							</div>
+							<div style="font-size:11.5px;color:{palette.inkMuted};">
+								Fires once in ~5s · background the app to see the banner
+							</div>
+						</div>
+						<Icon name="alert" size={15} color={palette.inkMuted} strokeWidth={2} />
 					</button>
 					<button
 						onclick={() => runSeed(clearLoggedData, 'Logged data cleared')}

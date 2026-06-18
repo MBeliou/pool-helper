@@ -10,3 +10,6 @@ bun.lockb
 ios/App/App/public
 ios/App/App/capacitor.config.json
 build
+
+# Local tooling (git-ignored, machine-local)
+.claude/

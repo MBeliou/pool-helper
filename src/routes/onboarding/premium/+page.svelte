@@ -30,6 +30,7 @@
 	];
 
 	let working = $state(false);
+	let purchaseMessage = $state('');
 
 	// Setup is already persisted on the previous screen; this step is a pure
 	// upsell, so both choices simply land the user on their pool.
@@ -41,15 +42,19 @@
 	async function startTrial() {
 		if (working) return;
 		working = true;
-		try {
-			// Opens the RevenueCat paywall (real pricing + 3-day trial). On web /
-			// simulator without billing this resolves to NOT_PRESENTED — we still
-			// move on so the flow is never a dead end.
-			await billing.presentPaywall();
-		} finally {
-			working = false;
-			await finishAndGoHome();
+		purchaseMessage = '';
+		// Opens the RevenueCat paywall (real pricing + 3-day trial). On web /
+		// simulator without billing this resolves to NOT_PRESENTED. Success is
+		// confirmed by StoreKit's own sheet + the Pro state on Home; we only need
+		// to surface a hard failure so the user isn't left wondering.
+		const result = await billing.presentPaywall();
+		working = false;
+		if (String(result) === 'ERROR') {
+			purchaseMessage =
+				"We couldn't open the store. Check your connection and try again, or start anytime from More → Subscription.";
+			return; // stay on screen so they can retry or tap "Maybe later"
 		}
+		await finishAndGoHome();
 	}
 
 	async function restore() {
@@ -120,8 +125,16 @@
 			disabled={working}
 			style="width:100%;background:#fff;color:{palette.accent};text-align:center;padding:16px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:800;font-size:16px;opacity:{working
 				? 0.7
-				: 1};">Start my 3-day free trial</button
+				: 1};">{working ? 'Opening…' : 'Start my 3-day free trial'}</button
 		>
+		{#if purchaseMessage}
+			<div
+				role="alert"
+				style="margin-top:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.4;text-align:center;"
+			>
+				{purchaseMessage}
+			</div>
+		{/if}
 		<div style="text-align:center;margin-top:11px;font-size:11.5px;opacity:0.72;line-height:1.4;">
 			Free for 3 days, then your plan renews automatically. Cancel anytime.
 		</div>
