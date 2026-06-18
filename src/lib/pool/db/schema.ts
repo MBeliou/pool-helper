@@ -7,8 +7,9 @@ export const profileTable = sqliteTable('profile', {
 	onboarded: integer('onboarded', { mode: 'boolean' }).notNull().default(false),
 	name: text('name').notNull().default('My pool'),
 	shape: text('shape').notNull(),
-	// canonical count in volumeUnit — formatting ("50,000") happens at the repository boundary
-	volume: integer('volume'),
+	// pool volume as a real number in volumeUnit (REAL so e.g. 9.7 m³ is exact);
+	// formatting for display happens at render, never in storage
+	volume: real('volume'),
 	surface: text('surface').notNull(),
 	sanitiser: text('sanitiser').notNull(),
 	filter: text('filter').notNull(),

@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
 import type { HardnessUnit, TemperatureUnit, VolumeUnit } from '../units';
-import { localeTag } from '../localeFormat';
 import { database } from './connection';
 import { profileTable, type ProfileRow } from './schema';
 
@@ -10,8 +9,8 @@ export interface ProfileValues {
 	onboarded: boolean;
 	name: string;
 	shape: string;
-	/** display string, e.g. "50,000" — stored as an integer */
-	volume: string;
+	/** pool volume in volumeUnit, as a real number (null = not set) */
+	volume: number | null;
 	surface: string;
 	sanitiser: string;
 	filter: string;
@@ -22,15 +21,6 @@ export interface ProfileValues {
 	tester: string;
 	reminderDays: number;
 	disclaimerAcceptedAt: Date | null;
-}
-
-function volumeStringToInteger(volume: string): number | null {
-	const digits = volume.replace(/[^0-9]/g, '');
-	return digits ? Number(digits) : null;
-}
-
-function volumeIntegerToString(volume: number | null): string {
-	return volume === null ? '' : volume.toLocaleString(localeTag());
 }
 
 export async function loadProfile(): Promise<ProfileValues | undefined> {
@@ -45,7 +35,7 @@ export async function loadProfile(): Promise<ProfileValues | undefined> {
 		onboarded: profileRow.onboarded,
 		name: profileRow.name,
 		shape: profileRow.shape,
-		volume: volumeIntegerToString(profileRow.volume),
+		volume: profileRow.volume,
 		surface: profileRow.surface,
 		sanitiser: profileRow.sanitiser,
 		filter: profileRow.filter,
@@ -65,7 +55,7 @@ export async function saveProfile(profileValues: ProfileValues): Promise<void> {
 		onboarded: profileValues.onboarded,
 		name: profileValues.name,
 		shape: profileValues.shape,
-		volume: volumeStringToInteger(profileValues.volume),
+		volume: profileValues.volume,
 		surface: profileValues.surface,
 		sanitiser: profileValues.sanitiser,
 		filter: profileValues.filter,

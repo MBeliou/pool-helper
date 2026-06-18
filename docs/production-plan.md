@@ -218,7 +218,8 @@ fr catalog) remain deferred per the decision.
   scaleFraction, testValue normalization, gaugeReadings), **`trends`** (direction thresholds,
   series/stats, unit-independence), **`format`** (date/age helpers), and **`db/migrations`**
   (`migrations.spec.ts`: a fake `SQLiteDBConnection` proves ordering, idempotency, and rollback +
-  rethrow against the real bundled migrations). `pnpm test:unit` → 69 green.
+  rethrow against the real bundled migrations), and **`localeFormat`/volume helpers** (comma-decimal
+  input sanitisation, unit conversion round-trips). `pnpm test:unit` → 81 green.
 
 #### original note
 

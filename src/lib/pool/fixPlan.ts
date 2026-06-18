@@ -29,8 +29,8 @@ import {
 } from './dosing';
 
 export interface PoolDosingProfile {
-	/** display string, e.g. "50,000" */
-	volume: string;
+	/** pool volume in volumeUnit, as a real number (null = not set) */
+	volume: number | null;
 	volumeUnit: VolumeUnit;
 	hardnessUnit: HardnessUnit;
 }
@@ -77,9 +77,8 @@ function idealMidpoint(parameter: ParameterDefinition): number {
 	return ((parameter.idealLow ?? 0) + (parameter.idealHigh ?? 0)) / 2;
 }
 
-export function volumeToCubicMetres(volume: string, volumeUnit: VolumeUnit): number {
-	const volumeNumber = Number(volume.replace(/[^0-9]/g, '')) || 0;
-	return (volumeNumber * LITRES_PER_VOLUME_UNIT[volumeUnit]) / 1000;
+export function volumeToCubicMetres(volume: number | null, volumeUnit: VolumeUnit): number {
+	return ((volume ?? 0) * LITRES_PER_VOLUME_UNIT[volumeUnit]) / 1000;
 }
 
 function formatDisplayValue(

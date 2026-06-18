@@ -31,7 +31,8 @@ class AppState {
 	name = $state('My pool');
 	// onboarding selections (defaults match the design)
 	shape = $state('Oval');
-	volume = $state('50,000');
+	// pool volume in volumeUnit as a real number (null = not yet set); formatted only at render
+	volume = $state<number | null>(50000);
 	surface = $state('Plaster');
 	sanitiser = $state('Chlorine');
 	filter = $state('Sand');
@@ -100,7 +101,7 @@ class AppState {
 		this.onboarded = profile.onboarded;
 		this.name = profile.name;
 		this.shape = profile.shape;
-		if (profile.volume) this.volume = profile.volume;
+		this.volume = profile.volume;
 		this.surface = profile.surface;
 		this.sanitiser = profile.sanitiser;
 		this.filter = profile.filter;
@@ -146,7 +147,11 @@ class AppState {
 			try {
 				const legacyProfile = JSON.parse(legacyProfileJson);
 				this.shape = legacyProfile.shape ?? this.shape;
-				this.volume = legacyProfile.volume ?? this.volume;
+				// legacy volume was a (possibly grouped) integer string — parse to a number
+				if (legacyProfile.volume != null) {
+					const legacyVolume = Number(String(legacyProfile.volume).replace(/[^0-9]/g, ''));
+					if (Number.isFinite(legacyVolume) && legacyVolume > 0) this.volume = legacyVolume;
+				}
 				this.surface = legacyProfile.surface ?? this.surface;
 				this.sanitiser = legacyProfile.sanitiser ?? this.sanitiser;
 				this.filter = legacyProfile.filter ?? this.filter;

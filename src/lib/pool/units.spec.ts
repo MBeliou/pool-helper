@@ -3,7 +3,9 @@ import {
 	hardnessFromPpm,
 	hardnessToPpm,
 	temperatureFromCelsius,
-	LITRES_PER_VOLUME_UNIT
+	LITRES_PER_VOLUME_UNIT,
+	convertVolume,
+	roundVolumeForUnit
 } from './units';
 import { volumeToCubicMetres } from './fixPlan';
 
@@ -48,19 +50,48 @@ describe('volume conversions', () => {
 	});
 
 	it('converts 10,000 imperial gallons to 45.46 m³', () => {
-		expect(volumeToCubicMetres('10,000', 'imp gal')).toBeCloseTo(45.46, 2);
+		expect(volumeToCubicMetres(10000, 'imp gal')).toBeCloseTo(45.46, 2);
 	});
 
 	it('converts 10,000 US gallons to 37.85 m³', () => {
-		expect(volumeToCubicMetres('10,000', 'US gal')).toBeCloseTo(37.85, 2);
+		expect(volumeToCubicMetres(10000, 'US gal')).toBeCloseTo(37.85, 2);
 	});
 
 	it('handles litres and cubic metres', () => {
-		expect(volumeToCubicMetres('50,000', 'litres')).toBe(50);
-		expect(volumeToCubicMetres('50', 'm³')).toBe(50);
+		expect(volumeToCubicMetres(50000, 'litres')).toBe(50);
+		expect(volumeToCubicMetres(50, 'm³')).toBe(50);
 	});
 
-	it('treats unparseable volume as zero', () => {
-		expect(volumeToCubicMetres('', 'litres')).toBe(0);
+	it('preserves fractional cubic metres', () => {
+		expect(volumeToCubicMetres(9.7, 'm³')).toBeCloseTo(9.7, 5);
+	});
+
+	it('treats a null volume as zero', () => {
+		expect(volumeToCubicMetres(null, 'litres')).toBe(0);
+	});
+});
+
+describe('roundVolumeForUnit', () => {
+	it('keeps one decimal for m³, whole numbers otherwise', () => {
+		expect(roundVolumeForUnit(9.74, 'm³')).toBe(9.7);
+		expect(roundVolumeForUnit(13210.4, 'litres')).toBe(13210);
+		expect(roundVolumeForUnit(5283.6, 'US gal')).toBe(5284);
+	});
+});
+
+describe('convertVolume — preserves physical size on unit change', () => {
+	it('is identity for the same unit', () => {
+		expect(convertVolume(9.7, 'm³', 'm³')).toBe(9.7);
+	});
+
+	it('converts litres ↔ m³ symmetrically', () => {
+		expect(convertVolume(50000, 'litres', 'm³')).toBe(50);
+		expect(convertVolume(50, 'm³', 'litres')).toBe(50000);
+		expect(convertVolume(9.7, 'm³', 'litres')).toBe(9700);
+	});
+
+	it('converts gallons to litres', () => {
+		expect(convertVolume(10000, 'imp gal', 'litres')).toBe(45460);
+		expect(convertVolume(10000, 'US gal', 'litres')).toBe(37850);
 	});
 });

@@ -5,6 +5,7 @@
 		HARDNESS_UNITS,
 		TEMPERATURE_UNITS,
 		VOLUME_UNITS,
+		convertVolume,
 		type HardnessUnit,
 		type TemperatureUnit,
 		type VolumeUnit
@@ -30,11 +31,27 @@
 		}
 	];
 
+	// convert the stored volume whenever the volume unit changes so the physical
+	// pool size is preserved (not silently relabelled under a new unit)
+	let previousVolumeUnit = app.volumeUnit;
+	function syncVolumeForUnitChange() {
+		if (app.volume !== null) {
+			app.volume = convertVolume(app.volume, previousVolumeUnit, app.volumeUnit);
+		}
+		previousVolumeUnit = app.volumeUnit;
+	}
+
 	function applyPreset(preset: (typeof presets)[number]) {
 		app.unitsPreset = preset.label;
 		app.volumeUnit = preset.volumeUnit;
 		app.hardnessUnit = preset.hardnessUnit;
 		app.temperatureUnit = preset.temperatureUnit;
+		syncVolumeForUnitChange();
+		app.save();
+	}
+
+	function onVolumeUnitChange() {
+		syncVolumeForUnitChange();
 		app.save();
 	}
 </script>
@@ -62,7 +79,7 @@
 		<UnitSelect
 			options={VOLUME_UNITS}
 			bind:value={app.volumeUnit}
-			onchange={() => app.save()}
+			onchange={onVolumeUnitChange}
 			name="volume-unit"
 		/>
 	</div>

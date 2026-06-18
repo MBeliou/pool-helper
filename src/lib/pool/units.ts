@@ -12,6 +12,20 @@ export const LITRES_PER_VOLUME_UNIT: Record<VolumeUnit, number> = {
 	'm³': 1000
 };
 
+/** Round a volume to the precision sensible for its unit: m³ keeps one decimal
+ *  (a pool can be 9.7 m³), litres/gallons are whole counts. */
+export function roundVolumeForUnit(value: number, unit: VolumeUnit): number {
+	return unit === 'm³' ? Math.round(value * 10) / 10 : Math.round(value);
+}
+
+/** Convert a volume between units (preserving the physical size), rounded to the
+ *  target unit's precision. Used when the user changes the volume unit. */
+export function convertVolume(value: number, from: VolumeUnit, to: VolumeUnit): number {
+	if (from === to) return value;
+	const litres = value * LITRES_PER_VOLUME_UNIT[from];
+	return roundVolumeForUnit(litres / LITRES_PER_VOLUME_UNIT[to], to);
+}
+
 // Alkalinity and calcium hardness are both CaCO₃ equivalents and share units:
 // ppm (mg/L), French degrees (1 °fH = 10 ppm), German degrees (1 °dH = 17.8 ppm).
 export const HARDNESS_UNITS = ['ppm', '°fH', '°dH'] as const;

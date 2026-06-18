@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
-	import { VOLUME_UNITS } from '$lib/pool/units';
-	import { localeTag } from '$lib/pool/localeFormat';
+	import { VOLUME_UNITS, convertVolume } from '$lib/pool/units';
+	import { formatNumber, sanitizeDecimalInput } from '$lib/pool/localeFormat';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
 	import VolumeCalculator from '$lib/pool/components/VolumeCalculator.svelte';
@@ -12,21 +12,48 @@
 
 	const palette = $derived(theme.palette);
 	let volumeMode = $state<'known' | 'calculate'>('known');
+	// editing buffer for the text field; app.volume holds the parsed number. m³ is
+	// shown ungrouped so its decimal can't collide with a thousands separator.
+	let previousVolumeUnit = app.volumeUnit;
+	const formatVolumeText = (volume: number) => formatNumber(volume, app.volumeUnit !== 'm³');
+	let volumeText = $state(app.volume === null ? '' : formatVolumeText(app.volume));
 
-	function applyCalculatedVolume(formattedVolume: string) {
-		app.volume = formattedVolume;
+	function applyCalculatedVolume(volume: number) {
+		app.volume = volume;
+		volumeText = formatVolumeText(volume);
 		app.save();
 		volumeMode = 'known';
 	}
 
-	// keep only digits while typing; group thousands on blur
+	// m³ allows one decimal (e.g. 9.7); litres/gallons are whole counts where a
+	// comma/point is a thousands separator, so strip to digits
 	function sanitizeVolume(rawValue: string): string {
-		return rawValue.replace(/[^0-9]/g, '').slice(0, 7);
+		return app.volumeUnit === 'm³'
+			? sanitizeDecimalInput(rawValue, 7)
+			: rawValue.replace(/[^0-9]/g, '').slice(0, 8);
 	}
 
+	function onVolumeInput(rawValue: string) {
+		volumeText = sanitizeVolume(rawValue);
+		const parsed = parseFloat(volumeText);
+		// keep the last good value while the field is transiently empty/invalid
+		if (Number.isFinite(parsed)) app.volume = parsed;
+	}
+
+	// reformat on blur (restores a number if the field was cleared, so volume is never left unset)
 	function formatVolume() {
-		const digits = app.volume.replace(/[^0-9]/g, '');
-		if (digits) app.volume = Number(digits).toLocaleString(localeTag());
+		volumeText = app.volume === null ? '' : formatVolumeText(app.volume);
+		app.save();
+	}
+
+	// convert the stored volume to the newly chosen unit so the physical size is
+	// preserved and the buffer can't be misread under the new unit
+	function changeVolumeUnit() {
+		if (app.volume !== null) {
+			app.volume = convertVolume(app.volume, previousVolumeUnit, app.volumeUnit);
+		}
+		previousVolumeUnit = app.volumeUnit;
+		volumeText = app.volume === null ? '' : formatVolumeText(app.volume);
 		app.save();
 	}
 </script>
@@ -72,9 +99,9 @@
 				<input
 					id="pool-volume"
 					type="text"
-					inputmode="numeric"
+					inputmode={app.volumeUnit === 'm³' ? 'decimal' : 'numeric'}
 					enterkeyhint="done"
-					bind:value={() => app.volume, (newValue) => (app.volume = sanitizeVolume(newValue))}
+					bind:value={() => volumeText, (newValue) => onVolumeInput(newValue)}
 					onblur={formatVolume}
 					onkeydown={(event) => event.key === 'Enter' && (event.target as HTMLInputElement).blur()}
 					style="flex:1;min-width:0;border:none;background:transparent;outline:none;font-family:var(--font-display);font-weight:600;font-size:30px;color:{palette.ink};caret-color:{palette.accent};padding:0;"
@@ -82,7 +109,7 @@
 				<UnitSelect
 					options={VOLUME_UNITS}
 					bind:value={app.volumeUnit}
-					onchange={() => app.save()}
+					onchange={changeVolumeUnit}
 					name="volume-unit"
 				/>
 			</div>

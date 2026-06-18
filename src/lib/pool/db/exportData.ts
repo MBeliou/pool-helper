@@ -5,6 +5,7 @@ import { listTests } from './testsRepository';
 import { listActions } from './actionsRepository';
 import { listIssues, listEventsForIssue } from './issuesRepository';
 import { listDiagnoses } from './diagnosesRepository';
+import migrationJournal from './migrations/meta/_journal.json';
 import type { ActionRow, DiagnosisRow, IssueEventRow, IssueRow, TestRow } from './schema';
 
 export interface ExportBundle {
@@ -19,7 +20,9 @@ export interface ExportBundle {
 	diagnoses: DiagnosisRow[];
 }
 
-const SCHEMA_VERSION = 7;
+// latest applied migration index, so the bundle's version never drifts when a
+// migration is added
+const SCHEMA_VERSION = Math.max(...migrationJournal.entries.map((entry) => entry.idx));
 
 export async function exportAllData(): Promise<ExportBundle> {
 	// sequential: the drizzle sqlite-proxy shares one connection, so we don't

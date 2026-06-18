@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { theme } from '../state/theme.svelte';
-	import { LITRES_PER_VOLUME_UNIT, type VolumeUnit } from '../units';
+	import { LITRES_PER_VOLUME_UNIT, roundVolumeForUnit, type VolumeUnit } from '../units';
 	import { dimensionUnitFor, estimatePoolVolumeLitres } from '../volumeCalculator';
-	import { localeTag } from '../localeFormat';
+	import { formatNumber, sanitizeDecimalInput } from '../localeFormat';
 
 	let {
 		shape,
@@ -11,8 +11,8 @@
 	}: {
 		shape: string;
 		volumeUnit: VolumeUnit;
-		/** receives the formatted volume string in the profile's volume unit */
-		onapply: (formattedVolume: string) => void;
+		/** receives the estimated volume as a real number in the profile's volume unit */
+		onapply: (volume: number) => void;
 	} = $props();
 
 	const palette = $derived(theme.palette);
@@ -32,7 +32,8 @@
 		return key === 'length' ? lengthText : key === 'width' ? widthText : depthText;
 	}
 	function setFieldValue(key: string, newValue: string) {
-		const cleaned = newValue.replace(/[^0-9.]/g, '').slice(0, 6);
+		// accept ',' or '.' as the decimal separator (fr keyboards emit ','); 1,5 → 1.5
+		const cleaned = sanitizeDecimalInput(newValue, 6);
 		if (key === 'length') lengthText = cleaned;
 		else if (key === 'width') widthText = cleaned;
 		else depthText = cleaned;
@@ -48,16 +49,19 @@
 		})
 	);
 
-	const estimateText = $derived.by(() => {
-		if (estimatedLitres === null) return null;
-		const inVolumeUnit = Math.round(estimatedLitres / LITRES_PER_VOLUME_UNIT[volumeUnit]);
-		return `${inVolumeUnit.toLocaleString(localeTag())} ${volumeUnit}`;
-	});
+	const estimatedInUnit = $derived(
+		estimatedLitres === null
+			? null
+			: roundVolumeForUnit(estimatedLitres / LITRES_PER_VOLUME_UNIT[volumeUnit], volumeUnit)
+	);
+
+	const estimateText = $derived(
+		estimatedInUnit === null ? null : `${formatNumber(estimatedInUnit)} ${volumeUnit}`
+	);
 
 	function apply() {
-		if (estimatedLitres === null) return;
-		const inVolumeUnit = Math.round(estimatedLitres / LITRES_PER_VOLUME_UNIT[volumeUnit]);
-		onapply(inVolumeUnit.toLocaleString(localeTag()));
+		if (estimatedInUnit === null) return;
+		onapply(estimatedInUnit);
 	}
 </script>
 
