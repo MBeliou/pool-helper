@@ -36,5 +36,29 @@ jobs:
 
       - name: Build
         run: pnpm build
-    # Note: e2e (playwright) is intentionally omitted until a committed e2e suite
-    # exists (production-plan #16). Add a job once specs land under e2e/.
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright (chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      # playwright.config webServer builds + previews; reuseExistingServer is off in CI
+      - name: e2e tests
+        run: pnpm exec playwright test

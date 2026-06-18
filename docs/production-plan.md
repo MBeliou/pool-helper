@@ -253,7 +253,8 @@ fr catalog) remain deferred per the decision.
 
 - `.github/workflows/ci.yml`: pnpm 10 + Node 22 (pnpm cache) → `pnpm install --frozen-lockfile`
   → `pnpm check` → `pnpm lint` → `vitest run` → `pnpm build`. All steps verified green locally.
-- Still TODO: add an e2e job once item #16 lands; later a macOS job for `xcodebuild -scheme App`.
+- Added 2026-06-18: a parallel **`e2e` job** (Playwright chromium; webServer builds + previews).
+- Still TODO: later a macOS job for `xcodebuild -scheme App`.
 
 ---
 
