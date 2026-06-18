@@ -69,6 +69,22 @@ export const issueEventsTable = sqliteTable('issue_events', {
 	state: text('state').notNull() // 'done' | 'active' | 'upcoming'
 });
 
+// One row per completed diagnose-wizard run. Captures the inputs (symptoms,
+// clarifying answers) and the placeholder "top cause" the wizard surfaced, then
+// links to the issue created from it. Real ranking arrives with the resolution
+// pipeline; this table is the durable record + the seam it will write through.
+export const diagnosesTable = sqliteTable('diagnoses', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+	symptoms: text('symptoms').notNull(), // JSON string[] of symptom kinds
+	answers: text('answers').notNull(), // JSON number[] of selected option indices
+	topCauseTitle: text('top_cause_title').notNull(),
+	topCausePercent: integer('top_cause_percent').notNull(),
+	topCauseStatus: text('top_cause_status').notNull(), // palette status key
+	topCauseFix: text('top_cause_fix').notNull(),
+	issueId: integer('issue_id').references(() => issuesTable.id)
+});
+
 // Actions the user has taken (dosing, maintenance…) — manually logged or
 // recorded while working an issue (issueId set). Shown in the /log journal.
 export const actionsTable = sqliteTable('actions', {
@@ -89,3 +105,5 @@ export type IssueEventRow = typeof issueEventsTable.$inferSelect;
 export type NewIssueEventRow = typeof issueEventsTable.$inferInsert;
 export type ActionRow = typeof actionsTable.$inferSelect;
 export type NewActionRow = typeof actionsTable.$inferInsert;
+export type DiagnosisRow = typeof diagnosesTable.$inferSelect;
+export type NewDiagnosisRow = typeof diagnosesTable.$inferInsert;

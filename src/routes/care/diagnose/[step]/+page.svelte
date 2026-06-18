@@ -4,10 +4,13 @@
 	import { goto } from '$app/navigation';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
+	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { daysSince, formatShortDate, hoursSince, isToday } from '$lib/pool/format';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import SymptomGlyph from '$lib/pool/components/SymptomGlyph.svelte';
 	import { getLatestTest } from '$lib/pool/db/testsRepository';
+	import { createIssueWithPlan } from '$lib/pool/db/issuesRepository';
+	import { insertDiagnosis } from '$lib/pool/db/diagnosesRepository';
 	import type { TestRow } from '$lib/pool/db/schema';
 
 	const palette = $derived(theme.palette);
@@ -19,6 +22,14 @@
 
 	onMount(async () => {
 		await app.load();
+		// Pro-gated feature: bounce free users who deep-link in (native only — web
+		// is an open preview). Awaiting configure() avoids wrongly bouncing a Pro
+		// user before their entitlement has hydrated.
+		await billing.configure();
+		if (billing.supported && !billing.isPro) {
+			goto('/care', { replaceState: true });
+			return;
+		}
 		latestTest = await getLatestTest();
 		testLoaded = true;
 	});
@@ -82,6 +93,56 @@
 		}
 	];
 
+	// Persist the wizard result and open the timeline on the new issue. Issue
+	// content is the placeholder top cause until the resolution pipeline supplies
+	// real ranking — this only wires the durable persistence seam.
+	let startingPlan = $state(false);
+	async function startFixPlan() {
+		if (startingPlan) return;
+		startingPlan = true;
+		const topCause = causes[0];
+		try {
+			const issueId = await createIssueWithPlan(
+				{
+					title: topCause.title,
+					statusKey: topCause.status,
+					subtitle: `Next: ${topCause.fix}`,
+					progress: 0,
+					expectedDays: 3,
+					startedAt: new Date()
+				},
+				[
+					{
+						orderIndex: 0,
+						title: `Start: ${topCause.fix}`,
+						whenLabel: 'In progress',
+						state: 'active'
+					},
+					{
+						orderIndex: 1,
+						title: 'Re-test in 24h',
+						whenLabel: 'Day 1 · upcoming',
+						state: 'upcoming'
+					}
+				]
+			);
+			await insertDiagnosis({
+				createdAt: new Date(),
+				symptoms: JSON.stringify(pickedSymptoms),
+				answers: JSON.stringify(questions.map((question) => question.selected)),
+				topCauseTitle: topCause.title,
+				topCausePercent: topCause.percent,
+				topCauseStatus: topCause.status,
+				topCauseFix: topCause.fix,
+				issueId
+			});
+			goto(`/care/timeline?issue=${issueId}`);
+		} catch (error) {
+			console.error('failed to start fix plan', error);
+			startingPlan = false;
+		}
+	}
+
 	const stepHeadings: Record<number, { title: string; sub: string }> = {
 		1: { title: 'What do you notice?', sub: 'Pick all that apply' },
 		2: { title: 'A few details', sub: 'Cloudy water' },
@@ -131,7 +192,7 @@
 		>
 			<path
 				d="M0 14 C 60 2 120 24 200 14 C 280 4 340 24 400 12 L400 26 L0 26 Z"
-				fill={palette.page}
+				style="fill:{palette.page}"
 			/>
 		</svg>
 	</div>
@@ -373,9 +434,11 @@
 				>Back</button
 			>
 			<button
-				onclick={() => goto('/care/timeline')}
-				style="flex:1;text-align:center;padding:15px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;color:#fff;background:{palette.accent};"
-				>Start a fix plan →</button
+				onclick={startFixPlan}
+				disabled={startingPlan}
+				style="flex:1;text-align:center;padding:15px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;color:#fff;background:{palette.accent};opacity:{startingPlan
+					? 0.7
+					: 1};">{startingPlan ? 'Starting…' : 'Start a fix plan →'}</button
 			>
 		</div>
 	{/if}
