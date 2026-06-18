@@ -2,7 +2,15 @@
 // Reachable from the More screen's Developer section.
 import { desc } from 'drizzle-orm';
 import { database } from './connection';
-import { actionsTable, issuesTable, issueEventsTable, testsTable, type NewTestRow } from './schema';
+import {
+	actionsTable,
+	diagnosesTable,
+	issuesTable,
+	issueEventsTable,
+	profileTable,
+	testsTable,
+	type NewTestRow
+} from './schema';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -13,10 +21,42 @@ function daysAgoAt(days: number, hour: number, minute = 0): Date {
 }
 
 export async function clearLoggedData(): Promise<void> {
+	// diagnoses + issue_events reference issues, so delete the children first
 	await database.delete(actionsTable);
+	await database.delete(diagnosesTable);
 	await database.delete(issueEventsTable);
 	await database.delete(issuesTable);
 	await database.delete(testsTable);
+}
+
+/**
+ * Dev/QA full wipe: everything `clearLoggedData` removes **plus** the profile
+ * row, returning the database to a fresh-install state. With no profile row,
+ * the next `app.load()` finds nothing to hydrate and the onboarding gate fires —
+ * use this to replay onboarding from scratch.
+ */
+export async function wipeAllData(): Promise<void> {
+	await clearLoggedData();
+	await database.delete(profileTable);
+}
+
+/**
+ * Dev/QA helper: append a single mid-range test dated now, so empty states and
+ * single-entry layouts can be exercised without loading a whole month of data.
+ */
+export async function seedSingleTest(): Promise<void> {
+	await database.insert(testsTable).values({
+		testedAt: new Date(),
+		tester: 'AquaChek 7-in-1',
+		ph: 7.4,
+		freeChlorine: 3.0,
+		totalAlkalinity: 90,
+		totalAlkalinityUnit: 'ppm',
+		calciumHardness: 250,
+		calciumHardnessUnit: 'ppm',
+		cyanuricAcid: 40,
+		temperature: 26
+	});
 }
 
 async function latestIssueId(): Promise<number> {
