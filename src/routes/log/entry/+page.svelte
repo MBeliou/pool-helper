@@ -13,6 +13,7 @@
 		type TemperatureUnit
 	} from '$lib/pool/units';
 	import { hoursSince } from '$lib/pool/format';
+	import { sanitizeDecimalInput } from '$lib/pool/localeFormat';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
@@ -100,15 +101,8 @@
 		if (hours < 24) recentTestHours = Math.max(1, Math.round(hours));
 	});
 
-	// keep digits and a single decimal point, max 5 characters
-	function sanitizeValue(rawValue: string): string {
-		let cleaned = rawValue.replace(/[^0-9.]/g, '');
-		const firstDot = cleaned.indexOf('.');
-		if (firstDot !== -1) {
-			cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replaceAll('.', '');
-		}
-		return cleaned.slice(0, 5);
-	}
+	// keep digits and a single decimal separator (',' or '.'), max 5 characters
+	const sanitizeValue = (rawValue: string) => sanitizeDecimalInput(rawValue, 5);
 
 	function focusNext(currentIndex: number) {
 		const nextInput = inputElements[currentIndex + 1];
@@ -117,7 +111,9 @@
 	}
 
 	function readingValue(key: string): number | null {
-		const parsed = parseFloat(readings.find((reading) => reading.key === key)?.value ?? '');
+		// normalize a French comma before parseFloat (parseFloat("7,4") === 7)
+		const raw = (readings.find((reading) => reading.key === key)?.value ?? '').replace(',', '.');
+		const parsed = parseFloat(raw);
 		return Number.isFinite(parsed) ? parsed : null;
 	}
 

@@ -11,3 +11,28 @@ const INTL_TAG: Record<string, string> = { en: 'en-US', fr: 'fr-FR' };
 export function localeTag(): string {
 	return INTL_TAG[getLocale()] ?? 'en-US';
 }
+
+/**
+ * Format a number for display in the active locale. Grouping is on by default
+ * ("50,000"); pass `false` for an editing buffer where a thousands separator
+ * would be ambiguous with a decimal comma (e.g. the m³ volume field).
+ */
+export function formatNumber(value: number, useGrouping = true): string {
+	return value.toLocaleString(localeTag(), { useGrouping });
+}
+
+/**
+ * Normalize raw text from a numeric input: accept both ',' and '.' as the decimal
+ * separator (French keyboards/locales emit ','), keep digits plus a single '.',
+ * and cap the length. Stored canonically with '.' so `parseFloat` round-trips.
+ * Locale-independent on purpose — it works regardless of how the device region is
+ * set, which the simulator and real devices can disagree on.
+ */
+export function sanitizeDecimalInput(raw: string, maxLength = Infinity): string {
+	let cleaned = raw.replaceAll(',', '.').replace(/[^0-9.]/g, '');
+	const firstDot = cleaned.indexOf('.');
+	if (firstDot !== -1) {
+		cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replaceAll('.', '');
+	}
+	return Number.isFinite(maxLength) ? cleaned.slice(0, maxLength) : cleaned;
+}
