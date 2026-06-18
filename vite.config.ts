@@ -29,7 +29,10 @@ export default defineConfig({
 		})
 	],
 	server: {
-		port: 5001
+		port: 5001,
+		// Bind to all interfaces so the Capacitor live-reload URL (the LAN IP baked
+		// in by `pnpm cap:dev`) is reachable from the iOS simulator and devices.
+		host: true
 	},
 	test: {
 		expect: {
