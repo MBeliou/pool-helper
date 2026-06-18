@@ -17,6 +17,7 @@
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import UnitSelect from '$lib/pool/components/UnitSelect.svelte';
 	import { getLatestTest, insertTest } from '$lib/pool/db/testsRepository';
+	import { rescheduleTestReminder } from '$lib/pool/reminders';
 
 	const palette = $derived(theme.palette);
 
@@ -124,8 +125,9 @@
 		// values stored as entered, with the unit each row declares;
 		// temperature is normalized to canonical °C at this boundary
 		const enteredTemperature = readingValue('temp');
+		const testedAt = new Date();
 		await insertTest({
-			testedAt: new Date(),
+			testedAt,
 			tester: app.tester,
 			ph: readingValue('ph'),
 			freeChlorine: readingValue('fc'),
@@ -139,6 +141,8 @@
 					? null
 					: temperatureToCelsius(enteredTemperature, readings[5].unit as TemperatureUnit)
 		});
+		// push the next test nudge out from this fresh reading (native, if enabled)
+		await rescheduleTestReminder(app.reminderDays, testedAt);
 		goto('/results');
 	}
 
