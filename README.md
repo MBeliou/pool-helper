@@ -57,3 +57,12 @@ pnpm cap:prod
 After either sync, build & run from Xcode (`npx cap open ios`) or via `xcodebuild` + `simctl`.
 Schema changes: edit `src/lib/pool/db/schema.ts`, then `pnpm db:generate`; migrations apply on
 next app launch.
+
+### iPad / orientations
+
+The app ships as a Universal binary (`TARGETED_DEVICE_FAMILY = "1,2"`) but is **portrait-locked** —
+the layouts are designed for portrait and render broken in landscape. Apple requires all four
+orientations for iPad *multitasking*, so to stay portrait-only on iPad we set `UIRequiresFullScreen`
+to `true` in `ios/App/App/Info.plist`, which opts out of multitasking and exempts us from that rule.
+If iPad multitasking is ever wanted, drop that key and add the landscape orientations (or make the
+app iPhone-only via `TARGETED_DEVICE_FAMILY = "1"`).
