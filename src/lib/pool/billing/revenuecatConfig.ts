@@ -9,14 +9,14 @@
 export const POOL_DOCTOR_PRO_ENTITLEMENT = 'Pool Doctor Pro';
 
 // Public SDK keys (safe to ship in the client bundle — these are not secret
-// server keys). Find them in RevenueCat → Project → API keys.
+// server keys). Find them in RevenueCat → Project Settings → API Keys → your
+// Apple App Store app (the public key is prefixed `appl_`).
 //
-// NOTE: the value below was supplied as `test_…`. RevenueCat's iOS App Store
-// public SDK key is normally prefixed `appl_`. Before shipping, confirm in the
-// dashboard (Project → API keys → Apple App Store) and replace if needed —
-// configuring with the wrong key surfaces as empty offerings / a paywall that
-// won't render.
-export const REVENUECAT_IOS_API_KEY = 'test_YGzUJpHHgsZJyyYYrrYGGXrvjox';
+// We switch on the Vite build mode so dev builds use the sandbox/test key and
+// release builds use the real production key.
+export const REVENUECAT_IOS_API_KEY = import.meta.env.DEV
+	? 'test_YGzUJpHHgsZJyyYYrrYGGXrvjox'
+	: 'appl_AAXTKVouYCBuBLOdlvDfTxhUKmv';
 
 // Android isn't a target yet; fill this in when an Android build is added.
 export const REVENUECAT_ANDROID_API_KEY = '';
