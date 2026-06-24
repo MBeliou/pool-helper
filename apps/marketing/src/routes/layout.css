@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+
+/* Brand design tokens shared with the app (palette, gradient, fonts, dark
+   overrides), consumed as var(--x). Single source of truth: packages/shared. */
+@import '@my-pool/shared/styles/tokens.css';

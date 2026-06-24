@@ -163,6 +163,10 @@ importers:
         version: 2.1.1(svelte@5.56.3(@typescript-eslint/types@8.61.0))(vitest@4.1.8)
 
   apps/marketing:
+    dependencies:
+      '@my-pool/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
     devDependencies:
       '@chromatic-com/storybook':
         specifier: ^5.2.1
