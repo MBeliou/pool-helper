@@ -1,52 +1,8 @@
-@import '@fontsource-variable/manrope';
-@import '@fontsource-variable/space-grotesk';
-
-:root {
-	--font-sans: 'Manrope Variable', 'Manrope', -apple-system, sans-serif;
-	--font-display: 'Space Grotesk Variable', 'Space Grotesk', -apple-system, sans-serif;
-	--safe-top: env(safe-area-inset-top, 24px);
-	--safe-bottom: env(safe-area-inset-bottom, 20px);
-
-	/* App palette — the single source of truth, read in JS as `palette.x` → `var(--x)`.
-	   Light values; dark overrides live in the prefers-color-scheme media query below.
-	   The browser resolves these before first paint (even on prerendered HTML), so
-	   theming is OS-driven and flash-free with zero JavaScript. */
-	--page: #f1f3f4;
-	--card: #ffffff;
-	--ink: #0f2a36;
-	--ink-muted: #5e7a86;
-	--accent: #0e6ba8;
-	--ideal-band: #dceaf3;
-	--track: #e7edf0;
-	--line: #e9eff2;
-	--status-ok: #1e9e6a;
-	--status-high: #e0962b;
-	--status-low: #d9534f;
-	--status-info: #0e6ba8;
-	--shadow: 0 1px 2px rgba(15, 42, 54, 0.04), 0 6px 18px rgba(15, 42, 54, 0.06);
-	--gradient: linear-gradient(158deg, #1f86c4, #0b5a92);
-	--on-gradient: #fff;
-}
-
-@media (prefers-color-scheme: dark) {
-	:root {
-		--page: #0c1a22;
-		--card: #15262f;
-		--ink: #eaf4f8;
-		--ink-muted: #7193a0;
-		--accent: #39a7dd;
-		--ideal-band: rgba(57, 167, 221, 0.16);
-		--track: #21343d;
-		--line: #20333c;
-		--status-ok: #35c98c;
-		--status-high: #f0b23e;
-		--status-low: #ff6f66;
-		--status-info: #39a7dd;
-		--shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
-		--gradient: linear-gradient(158deg, #11506f, #0a3550);
-		--on-gradient: #eaf4f8;
-	}
-}
+/* Brand design tokens (palette, gradient, fonts, dark overrides) live in the shared
+   package so the marketing site consumes the exact same values. Read in JS as
+   `palette.x` → `var(--x)`; resolved before first paint, so theming stays flash-free.
+   Everything below is app-specific structure/behaviour. */
+@import '@my-pool/shared/styles/tokens.css';
 
 html,
 body {

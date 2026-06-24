@@ -1,0 +1,14 @@
+{
+	"name": "@my-pool/shared",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./styles/tokens.css": "./styles/tokens.css",
+		"./assets/*": "./assets/*"
+	},
+	"dependencies": {
+		"@fontsource-variable/manrope": "^5.2.8",
+		"@fontsource-variable/space-grotesk": "^5.2.10"
+	}
+}

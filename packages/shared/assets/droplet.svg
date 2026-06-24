@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- My Pool brand mark — the droplet outline. currentColor so it inherits text color;
+     override with stroke="#fff" on a gradient, or stroke="#0e6ba8" on light surfaces. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none"
+     stroke="currentColor" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"
+     role="img" aria-label="My Pool">
+  <path d="M 256,72
+           C 293,144 349,222 349,338
+           A 93 93 0 1 1 163,338
+           C 163,222 219,144 256,72 Z"/>
+</svg>

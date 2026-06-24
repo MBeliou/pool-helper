@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { completeOnboarding } from './helpers';
 
-test('logging a test (with a comma decimal) persists and shows in the journal', async ({ page }) => {
+test('logging a test (with a comma decimal) persists and shows in the journal', async ({
+	page
+}) => {
 	await completeOnboarding(page);
 
 	await page.goto('/log/entry');

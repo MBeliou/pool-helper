@@ -32,7 +32,7 @@ jobs:
         run: pnpm lint
 
       - name: Unit tests
-        run: pnpm exec vitest run
+        run: pnpm --filter @my-pool/app exec vitest run
 
       - name: Build
         run: pnpm build
@@ -57,8 +57,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright (chromium)
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter @my-pool/app exec playwright install --with-deps chromium
 
       # playwright.config webServer builds + previews; reuseExistingServer is off in CI
       - name: e2e tests
-        run: pnpm exec playwright test
+        run: pnpm --filter @my-pool/app exec playwright test
