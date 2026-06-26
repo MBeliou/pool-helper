@@ -1,6 +1,25 @@
-# sv
+# marketing
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+The marketing website. Built as a **config-driven, reusable template**: all content lives in one
+typed config, and the section components are product-agnostic.
+
+## Reuse for a new product
+
+To re-skin the entire site for a different product, edit just two things — no component changes:
+
+1. **`src/lib/config/site.ts`** — the single source of truth for all copy (brand name/tagline, nav,
+   hero, stats, features, pricing, screenshots, testimonials, FAQ, CTA, footer, SEO). The shape is
+   typed in `src/lib/config/types.ts`.
+2. **The brand assets** — the droplet/logo comes from `@my-pool/shared/assets/`, and the design
+   tokens (palette, gradient, fonts) from `@my-pool/shared/styles/tokens.css`.
+
+Sections live in `src/lib/components/marketing/` (composed in `src/routes/+page.svelte`). Screenshots
+use `AppScreenshot.svelte`, a placeholder panel that accepts a real `src` when you have one. New
+feature icons: add the lucide icon to the `ICONS` map in `Features.svelte`.
+
+---
+
+Powered by [`sv`](https://github.com/sveltejs/cli).
 
 ## Creating a project
 
