@@ -7,3 +7,8 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Generated / vendored — don't reformat (keeps shadcn updates clean)
+src/lib/components/ui
+src/lib/paraglide
+src/stories
