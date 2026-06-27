@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-vercel';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { searchForWorkspaceRoot } from 'vite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
@@ -34,6 +35,12 @@ export default defineConfig({
 			outdir: './src/lib/paraglide'
 		})
 	],
+	server: {
+		// pnpm workspace: deps (fonts via @my-pool/shared, the Kit runtime) resolve into
+		// the repo-root node_modules/.pnpm store, outside this app dir. Allow the
+		// workspace root so the dev server can serve them.
+		fs: { allow: [searchForWorkspaceRoot(process.cwd())] }
+	},
 	test: {
 		expect: {
 			requireAssertions: true

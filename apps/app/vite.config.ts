@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { searchForWorkspaceRoot } from 'vite';
 
 export default defineConfig({
 	plugins: [
@@ -32,7 +33,10 @@ export default defineConfig({
 		port: 5001,
 		// Bind to all interfaces so the Capacitor live-reload URL (the LAN IP baked
 		// in by `pnpm cap:dev`) is reachable from the iOS simulator and devices.
-		host: true
+		host: true,
+		// pnpm workspace: deps (fonts via @my-pool/shared) resolve into the repo-root
+		// node_modules/.pnpm store, outside this app dir. Allow the workspace root.
+		fs: { allow: [searchForWorkspaceRoot(process.cwd())] }
 	},
 	test: {
 		expect: {
