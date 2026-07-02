@@ -1,0 +1,18 @@
+{
+	"tasks": {
+		"ping": "deno run --allow-env --allow-net --allow-read --env-file=.env ping.ts",
+		"capture": "deno run --allow-env --allow-net --allow-read --allow-write --allow-run --env-file=.env capture.ts",
+		"template": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env template.ts",
+		"frame": "deno run --allow-env --allow-net --allow-read --allow-write --allow-ffi --allow-sys --env-file=.env frame.ts",
+		"screenshots:push": "deno run --allow-env --allow-net --allow-read --env-file=.env upload-screenshots.ts",
+		"metadata:push": "deno run --allow-env --allow-net --allow-read --env-file=.env push-metadata.ts"
+	},
+	"imports": {
+		"@std/crypto": "jsr:@std/crypto@^1.0.0",
+		"@std/encoding": "jsr:@std/encoding@^1.0.0",
+		"@std/fs": "jsr:@std/fs@^1.0.0",
+		"@std/path": "jsr:@std/path@^1.0.0"
+	},
+	"lint": { "rules": { "tags": ["recommended"] } },
+	"fmt": { "useTabs": true }
+}
