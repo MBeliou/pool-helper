@@ -15,3 +15,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
+
+# Secrets / build artifacts
+*.p8
+apps/app/tools/out/
