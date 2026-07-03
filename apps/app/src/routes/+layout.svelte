@@ -10,6 +10,7 @@
 	import { app } from '$lib/pool/state/app.svelte';
 	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { applyStatusBar, hideSplash } from '$lib/pool/native/systemUi';
+	import { registerDeepLinks } from '$lib/pool/native/deepLinks';
 	import Icon from '$lib/pool/components/Icon.svelte';
 
 	let { children } = $props();
@@ -25,6 +26,8 @@
 			if (!app.onboarded && !page.url.pathname.startsWith('/onboarding')) {
 				goto('/onboarding/welcome', { replaceState: true });
 			}
+			// mypool:// deep links (screenshot automation); needs the DB ready first
+			registerDeepLinks();
 		})();
 		// Billing is non-critical: configure in the background so a RevenueCat
 		// outage can never block storage init or the first paint.
