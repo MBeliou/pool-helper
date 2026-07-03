@@ -41,7 +41,7 @@ export const SCREENS: Screen[] = [
 	},
 	{
 		id: "04-diagnose",
-		route: "/care/diagnose/symptom",
+		route: "/care/diagnose/1",
 		headline: "Cloudy or green?\nDiagnose it fast",
 		subhead: "Answer a few questions and follow a clear plan to clear the water.",
 		callout: "Guided fix plans",
