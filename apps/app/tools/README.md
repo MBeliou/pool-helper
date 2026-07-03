@@ -30,12 +30,25 @@ deno task metadata:push    # 4. push listing copy from metadata/** (idempotent)
 ### Subscriptions / IAP (products)
 
 ```sh
+deno task readiness                   # JSON: full submission-readiness report (what's ok/missing/issues)
+deno task readiness -- --format=text  # same, human-readable
 deno task prices:report               # read-only: price + state + missing pieces per product
-deno task paywall                     # grab the RC paywall (cap:prod build + sandbox) → out/paywall/
-deno task products:push -- --target=asc  # set price + localization + review screenshot from
-                                         # products/products.json (edit the lifetime price first!)
+deno task products:pull               # mirror current ASC settings into products/products.json
+deno task paywall                     # grab the RC paywall → out/paywall/ (see StoreKit config below)
+deno task products:push -- --target=asc  # set price + localization + review screenshot from products.json
 deno task products:push -- --target=rc   # verify RC structure (needs RC_SECRET_API_KEY; RC can't set prices)
 ```
+
+**Paywall review screenshot — real prices via StoreKit config.** The dev build (`test_` key) shows
+RevenueCat Test Store prices, and Test Store prices are immutable. To capture the paywall with the
+real App Store prices, use the StoreKit config `apps/app/ios/App/Configuration.storekit` (mirrors
+ASC: `yearly_sub` $29.99 + 3-day trial, `lifetime_pro` $59.99). One-time Xcode setup:
+1. `pnpm cap:prod` (production bundle → the real `appl_` RevenueCat key), then `npx cap open ios`.
+2. In Xcode, add `Configuration.storekit` to the App project if it isn't listed (drag it into the
+   navigator), then Product → Scheme → Edit Scheme → Run → Options → **StoreKit Configuration →
+   Configuration.storekit**.
+3. **Run from Xcode** in the simulator (StoreKit config is ignored on headless `simctl` launches).
+   As a free (non-Pro) user open the paywall → it shows $29.99 / $59.99 → `deno task paywall`.
 
 ### Deep links (screenshot automation)
 
