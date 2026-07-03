@@ -1,12 +1,12 @@
 export { default as Navbar } from './Navbar.svelte';
 export { default as Hero } from './Hero.svelte';
-export { default as Stats } from './Stats.svelte';
+export { default as HowItWorks } from './HowItWorks.svelte';
 export { default as Features } from './Features.svelte';
 export { default as Pricing } from './Pricing.svelte';
 export { default as Screenshots } from './Screenshots.svelte';
-export { default as Testimonials } from './Testimonials.svelte';
 export { default as Faq } from './Faq.svelte';
 export { default as CtaBand } from './CtaBand.svelte';
+export { default as DownloadCta } from './DownloadCta.svelte';
 export { default as Footer } from './Footer.svelte';
 export { default as Seo } from './Seo.svelte';
 export { default as Logo } from './Logo.svelte';

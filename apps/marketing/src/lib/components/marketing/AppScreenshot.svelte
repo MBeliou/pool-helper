@@ -20,7 +20,7 @@
 <div
 	class={cn(
 		'relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm',
-		ratio === 'phone' ? 'aspect-[9/16]' : 'aspect-[16/10]',
+		ratio === 'phone' ? 'aspect-[1206/2622]' : 'aspect-[16/10]',
 		className
 	)}
 >

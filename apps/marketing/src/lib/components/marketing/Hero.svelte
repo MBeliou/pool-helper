@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Container from './Container.svelte';
 	import AppScreenshot from './AppScreenshot.svelte';
+	import DownloadCta from './DownloadCta.svelte';
 	import { site } from '$lib/config/site';
 
 	const hero = site.hero;
@@ -24,9 +25,7 @@
 			{hero.subhead}
 		</p>
 		<div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-			<Button size="lg" href={hero.primaryCta.href} class="w-full sm:w-auto">
-				{hero.primaryCta.label}
-			</Button>
+			<DownloadCta label={hero.primaryCta.label} size="lg" class="w-full sm:w-auto" />
 			{#if hero.secondaryCta}
 				<Button size="lg" variant="ghost" href={hero.secondaryCta.href} class="w-full sm:w-auto">
 					{hero.secondaryCta.label}
@@ -37,6 +36,6 @@
 	</div>
 
 	<div class="mx-auto mt-14 max-w-xs sm:mt-16 sm:max-w-sm">
-		<AppScreenshot caption={hero.screenshotCaption} />
+		<AppScreenshot caption={hero.screenshotCaption} src={hero.screenshotSrc} />
 	</div>
 </Container>

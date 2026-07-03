@@ -25,27 +25,30 @@
 
 	<h2>Purchases and subscriptions</h2>
 	<p>
-		Payments are handled entirely by Apple through the App Store — we never see your payment details.
-		To unlock and restore Pro features we use RevenueCat as our subscription provider. RevenueCat
-		receives an anonymous, app-generated identifier and the purchase/entitlement status associated
-		with it; it does not receive your name, email, or Apple ID. See
-		<a href="https://www.revenuecat.com/privacy" rel="noopener" target="_blank">RevenueCat's privacy policy</a>
+		Payments are handled entirely by Apple through the App Store — we never see your payment
+		details. To unlock and restore Pro features we use RevenueCat as our subscription provider.
+		RevenueCat receives an anonymous, app-generated identifier and the purchase/entitlement status
+		associated with it; it does not receive your name, email, or Apple ID. See
+		<a href="https://www.revenuecat.com/privacy" rel="noopener" target="_blank"
+			>RevenueCat's privacy policy</a
+		>
 		and
-		<a href="https://www.apple.com/legal/privacy/" rel="noopener" target="_blank">Apple's privacy policy</a>
+		<a href="https://www.apple.com/legal/privacy/" rel="noopener" target="_blank"
+			>Apple's privacy policy</a
+		>
 		for how each handles that information.
 	</p>
 
 	<h2>Analytics and tracking</h2>
 	<p>
 		{site.brand.name} contains no third-party advertising and no cross-app or cross-site tracking. We
-		do not sell your data, and we do not use it to track you across apps or websites owned by other
-		companies.
+		do not sell your data, and we do not use it to track you across apps or websites owned by other companies.
 	</p>
 
 	<h2>Notifications</h2>
 	<p>
-		If you enable re-test reminders, they are scheduled locally on your device. You can turn them off
-		at any time in the app or in your device's notification settings.
+		If you enable re-test reminders, they are scheduled locally on your device. You can turn them
+		off at any time in the app or in your device's notification settings.
 	</p>
 
 	<h2>Children</h2>

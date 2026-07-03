@@ -27,13 +27,17 @@ export interface Hero {
 	subhead: string;
 	primaryCta: CtaLink;
 	secondaryCta?: CtaLink;
-	/** Caption shown inside the placeholder screenshot. */
+	/** Caption shown under the hero screenshot. */
 	screenshotCaption: string;
+	/** Root-relative path to the hero screenshot (e.g. "/screenshots/01-home.png"). */
+	screenshotSrc?: string;
 }
 
-export interface Stat {
-	value: string;
-	label: string;
+export interface HowItWorksStep {
+	/** Step number as displayed, e.g. "1". */
+	step: string;
+	title: string;
+	description: string;
 }
 
 export interface Feature {
@@ -41,7 +45,7 @@ export interface Feature {
 	icon: string;
 	title: string;
 	description: string;
-	tier?: 'Free' | 'Premium';
+	tier?: 'Free' | 'Pro';
 }
 
 export interface PricingTier {
@@ -59,14 +63,8 @@ export interface PricingTier {
 
 export interface Shot {
 	caption: string;
-}
-
-export interface Testimonial {
-	quote: string;
-	name: string;
-	location: string;
-	/** 1–5. */
-	rating: number;
+	/** Root-relative path to a real screenshot; falls back to a placeholder when absent. */
+	src?: string;
 }
 
 export interface FaqItem {
@@ -96,18 +94,22 @@ export interface Seo {
 
 export interface SiteConfig {
 	brand: Brand;
+	/**
+	 * The live App Store URL. Leave undefined pre-launch: download CTAs render a
+	 * "Coming soon" badge. Set it and every download CTA becomes a real link.
+	 */
+	appStoreUrl?: string;
 	nav: NavLink[];
 	headerCta: CtaLink;
 	hero: Hero;
-	stats: Stat[];
+	howItWorksHeading: { title: string; subtitle: string };
+	howItWorks: HowItWorksStep[];
 	featuresHeading: { title: string; subtitle: string };
 	features: Feature[];
 	pricingHeading: { title: string; subtitle: string };
 	pricing: PricingTier[];
 	screenshotsHeading: { title: string; subtitle: string };
 	screenshots: Shot[];
-	testimonialsHeading: { title: string; subtitle: string };
-	testimonials: Testimonial[];
 	faqHeading: { title: string; subtitle: string };
 	faq: FaqItem[];
 	ctaBand: CtaBand;

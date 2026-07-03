@@ -1,11 +1,11 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
-	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import Container from './Container.svelte';
 	import Section from './Section.svelte';
 	import SectionHeading from './SectionHeading.svelte';
+	import DownloadCta from './DownloadCta.svelte';
 	import { site } from '$lib/config/site';
 </script>
 
@@ -13,7 +13,7 @@
 	<Container>
 		<SectionHeading title={site.pricingHeading.title} subtitle={site.pricingHeading.subtitle} />
 
-		<div class="mx-auto mt-14 grid max-w-4xl gap-6 md:grid-cols-2">
+		<div class="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
 			{#each site.pricing as tier (tier.name)}
 				<div
 					class={cn(
@@ -42,13 +42,13 @@
 						{/each}
 					</ul>
 
-					<Button
-						class="mt-8 w-full"
+					<DownloadCta
+						label={tier.cta.label}
+						comingSoonLabel="Coming soon"
 						variant={tier.featured ? 'default' : 'outline'}
-						href={tier.cta.href}
-					>
-						{tier.cta.label}
-					</Button>
+						size="default"
+						class="mt-8 w-full"
+					/>
 				</div>
 			{/each}
 		</div>

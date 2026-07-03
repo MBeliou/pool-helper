@@ -15,7 +15,12 @@
 
 		<div class="mt-14 grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-4">
 			{#each site.screenshots as shot (shot.caption)}
-				<AppScreenshot caption={shot.caption} />
+				<figure>
+					<AppScreenshot caption={shot.caption} src={shot.src} />
+					<figcaption class="text-muted-foreground mt-3 text-center text-sm font-medium">
+						{shot.caption}
+					</figcaption>
+				</figure>
 			{/each}
 		</div>
 	</Container>

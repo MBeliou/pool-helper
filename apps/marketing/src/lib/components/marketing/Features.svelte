@@ -40,7 +40,7 @@
 							<Icon class="size-5" />
 						</span>
 						{#if feature.tier}
-							<Badge variant={feature.tier === 'Premium' ? 'default' : 'secondary'}>
+							<Badge variant={feature.tier === 'Pro' ? 'default' : 'secondary'}>
 								{feature.tier}
 							</Badge>
 						{/if}

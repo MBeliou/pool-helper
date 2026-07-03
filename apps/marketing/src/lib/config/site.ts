@@ -3,7 +3,8 @@ import type { SiteConfig } from './types';
 // ─────────────────────────────────────────────────────────────────────────────
 // The product. Edit THIS file (and swap the brand droplet asset) to re-skin the
 // entire marketing site for a different product — no component changes needed.
-// All copy here is placeholder content; replace with real marketing copy.
+// Copy here mirrors the App Store listing (apps/app/tools/metadata/en-US) so the
+// website and the store tell the same story.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const site: SiteConfig = {
@@ -13,10 +14,14 @@ export const site: SiteConfig = {
 		domain: 'mypool.app'
 	},
 
+	// Pre-launch: leave undefined and every download CTA renders a "Coming soon"
+	// badge. At launch, set this to the App Store URL and they become real links.
+	// appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXXX',
+
 	nav: [
 		{ label: 'Features', href: '#features' },
+		{ label: 'How it works', href: '#how' },
 		{ label: 'Pricing', href: '#pricing' },
-		{ label: 'Reviews', href: '#reviews' },
 		{ label: 'FAQ', href: '#faq' }
 	],
 	headerCta: { label: 'Get the app', href: '#download' },
@@ -27,15 +32,33 @@ export const site: SiteConfig = {
 		subhead:
 			'Log a water test and get an exact, step-by-step dosing plan for your pool — tailored to its size, surface, and chemistry. No spreadsheets, no chemistry degree.',
 		primaryCta: { label: 'Download for iOS', href: '#download' },
-		secondaryCta: { label: 'See how it works', href: '#features' },
-		screenshotCaption: 'Home dashboard'
+		secondaryCta: { label: 'See how it works', href: '#how' },
+		screenshotCaption: 'Your pool at a glance',
+		screenshotSrc: '/screenshots/01-home.png'
 	},
 
-	stats: [
-		{ value: '2 min', label: 'to a full dosing plan' },
-		{ value: '12+', label: 'water parameters tracked' },
-		{ value: '100%', label: 'on-device & private' },
-		{ value: '4.9★', label: 'average tester rating' }
+	howItWorksHeading: {
+		title: 'From water test to balanced, in three steps',
+		subtitle: 'No dumping in chemicals and hoping. Just test, dose, and you’re done.'
+	},
+	howItWorks: [
+		{
+			step: '1',
+			title: 'Log a water test',
+			description:
+				'Enter your strip or kit readings. My Pool instantly flags anything out of range.'
+		},
+		{
+			step: '2',
+			title: 'Get your dosing plan',
+			description:
+				'See the precise amount of each product to add, calculated from your pool’s real volume.'
+		},
+		{
+			step: '3',
+			title: 'Follow the steps',
+			description: 'Add what the plan says, re-test, and your water’s balanced.'
+		}
 	],
 
 	featuresHeading: {
@@ -61,19 +84,19 @@ export const site: SiteConfig = {
 			icon: 'stethoscope',
 			title: 'Diagnose problems',
 			description:
-				'Cloudy or green water? Answer a few questions and follow a clear fix plan to clear it up.',
-			tier: 'Premium'
+				'Cloudy, green, or foamy water? Answer a few questions and follow a clear fix plan to clear it up.',
+			tier: 'Pro'
 		},
 		{
 			icon: 'line-chart',
 			title: 'Trends over time',
 			description:
 				'See how each reading moves week to week so you can catch issues before they start.',
-			tier: 'Premium'
+			tier: 'Pro'
 		},
 		{
 			icon: 'bell',
-			title: 'Smart reminders',
+			title: 'Re-test reminders',
 			description:
 				'Get nudged to re-test on a cadence that fits your pool, your climate, and your season.',
 			tier: 'Free'
@@ -113,12 +136,25 @@ export const site: SiteConfig = {
 			features: [
 				'Everything in Free',
 				'Problem diagnosis & fix plans',
-				'Trends & history insights',
-				'Priority support'
+				'Full trend history',
+				'Smart reminders'
 			],
 			cta: { label: 'Start 3-day free trial', href: '#download' },
 			featured: true,
 			badge: '3-day free trial'
+		},
+		{
+			name: 'Lifetime',
+			price: '$59.99',
+			period: 'one-time',
+			description: 'Pay once. Every Pro feature, forever — no subscription.',
+			features: [
+				'Everything in Pro',
+				'One-time purchase',
+				'No recurring subscription',
+				'Free updates'
+			],
+			cta: { label: 'Buy Lifetime', href: '#download' }
 		}
 	],
 
@@ -127,38 +163,10 @@ export const site: SiteConfig = {
 		subtitle: 'Designed to feel effortless on the pool deck.'
 	},
 	screenshots: [
-		{ caption: 'Log a test' },
-		{ caption: 'Your dosing plan' },
-		{ caption: 'Diagnose issues' },
-		{ caption: 'Track trends' }
-	],
-
-	testimonialsHeading: {
-		title: 'Loved by pool owners',
-		subtitle: 'Early testers on what changed for them.'
-	},
-	testimonials: [
-		{
-			quote:
-				'I used to dread balancing the pool. Now I test, follow the plan, and I’m done before my coffee’s cold.',
-			name: 'Jordan M.',
-			location: 'Phoenix, AZ',
-			rating: 5
-		},
-		{
-			quote:
-				'The dosing amounts are spot on for my exact pool size. No more guessing or over-shocking.',
-			name: 'Camille R.',
-			location: 'Aix-en-Provence, FR',
-			rating: 5
-		},
-		{
-			quote:
-				'Green water gone in two days by just following the fix plan. This app paid for itself instantly.',
-			name: 'Dale W.',
-			location: 'Tampa, FL',
-			rating: 4
-		}
+		{ caption: 'Log a test', src: '/screenshots/02-test.png' },
+		{ caption: 'Your dosing plan', src: '/screenshots/03-plan.png' },
+		{ caption: 'Diagnose issues', src: '/screenshots/04-diagnose.png' },
+		{ caption: 'Track trends', src: '/screenshots/05-trends.png' }
 	],
 
 	faqHeading: {
@@ -172,19 +180,19 @@ export const site: SiteConfig = {
 				'No. My Pool works with test strips or liquid kits — just enter your readings and we handle the rest.'
 		},
 		{
-			question: 'Does it work for any pool?',
+			question: 'Does it work for any pool or hot tub?',
 			answer:
-				'Yes. Set your pool’s size, shape, and surface once, and every dosing plan is tailored to your exact water volume.'
+				'Yes. Set your pool or hot tub’s size, shape, and surface once — chlorine or salt — and every dosing plan is tailored to your exact water volume.'
 		},
 		{
 			question: 'Is my data private?',
 			answer:
-				'Completely. Your pool profile and test history stay on your device. No account is required and nothing is sold or tracked.'
+				'Completely. Your pool profile and test history stay on your device. No account is required and nothing is sold or tracked. You can export everything at any time.'
 		},
 		{
 			question: 'What do I get with Pro?',
 			answer:
-				'Pro unlocks problem diagnosis with guided fix plans and long-term trends. It starts with a 3-day free trial.'
+				'Pro unlocks problem diagnosis with guided fix plans, your full trend history, and smart reminders. It’s available as an annual plan with a 3-day free trial, or a one-time Lifetime purchase.'
 		},
 		{
 			question: 'Can I cancel anytime?',
@@ -196,9 +204,8 @@ export const site: SiteConfig = {
 	ctaBand: {
 		headline: 'Ready for an easier pool?',
 		subhead: 'Download My Pool and get your first dosing plan today.',
-		primaryCta: { label: 'Download for iOS', href: '#' },
-		secondaryCta: { label: 'Get it on Android', href: '#' },
-		note: 'Free to start. Pro available with a 3-day free trial.'
+		primaryCta: { label: 'Download for iOS', href: '#download' },
+		note: 'Free to start. Pro from $29.99/year with a 3-day free trial, or $59.99 once.'
 	},
 
 	footer: {
@@ -207,16 +214,15 @@ export const site: SiteConfig = {
 				title: 'Product',
 				links: [
 					{ label: 'Features', href: '#features' },
+					{ label: 'How it works', href: '#how' },
 					{ label: 'Pricing', href: '#pricing' },
-					{ label: 'Reviews', href: '#reviews' },
 					{ label: 'FAQ', href: '#faq' }
 				]
 			},
 			{
-				title: 'Company',
+				title: 'Support',
 				links: [
-					{ label: 'About', href: '#' },
-					{ label: 'Blog', href: '#' },
+					{ label: 'Help & support', href: '/support' },
 					{ label: 'Contact', href: 'mailto:hello@mypool.app' }
 				]
 			},

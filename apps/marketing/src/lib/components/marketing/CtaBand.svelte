@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
 	import Container from './Container.svelte';
 	import Section from './Section.svelte';
+	import DownloadCta from './DownloadCta.svelte';
 	import { site } from '$lib/config/site';
 
 	const cta = site.ctaBand;
@@ -20,19 +20,12 @@
 				<p class="mt-4 text-lg opacity-90 text-pretty">{cta.subhead}</p>
 
 				<div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-					<Button size="lg" variant="secondary" href={cta.primaryCta.href} class="w-full sm:w-auto">
-						{cta.primaryCta.label}
-					</Button>
-					{#if cta.secondaryCta}
-						<Button
-							size="lg"
-							variant="outline"
-							href={cta.secondaryCta.href}
-							class="w-full border-white/40 bg-transparent text-[color:var(--on-gradient)] hover:bg-white/10 hover:text-[color:var(--on-gradient)] sm:w-auto"
-						>
-							{cta.secondaryCta.label}
-						</Button>
-					{/if}
+					<DownloadCta
+						label={cta.primaryCta.label}
+						variant="secondary"
+						size="lg"
+						class="w-full sm:w-auto"
+					/>
 				</div>
 
 				{#if cta.note}

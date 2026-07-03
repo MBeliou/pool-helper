@@ -2,11 +2,10 @@
 	import {
 		Navbar,
 		Hero,
-		Stats,
+		HowItWorks,
 		Features,
 		Pricing,
 		Screenshots,
-		Testimonials,
 		Faq,
 		CtaBand,
 		Footer
@@ -17,13 +16,10 @@
 	<Navbar />
 	<main>
 		<Hero />
-		<div class="-mt-4 pb-8 sm:pb-12">
-			<Stats />
-		</div>
+		<HowItWorks />
 		<Features />
 		<Pricing />
 		<Screenshots />
-		<Testimonials />
 		<Faq />
 		<CtaBand />
 	</main>
