@@ -1,0 +1,78 @@
+{
+  "identifier" : "9B7D2E10-3C41-4A8E-9F21-7C2A5E1B4D60",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "59.99",
+      "familyShareable" : false,
+      "internalID" : "A1F4C2D8-6E93-4B57-8A0C-1D2E3F405162",
+      "localizations" : [
+        {
+          "description" : "Full pool care, one-time purchase.",
+          "displayName" : "My Pool Pro (Lifetime)",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "lifetime_pro",
+      "referenceName" : "Lifetime Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6781731215",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "22166716",
+      "localizations" : [
+
+      ],
+      "name" : "My Pool Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "B2E5D3F9-7C04-4A68-9B1D-2E3F40516273",
+          "introductoryOffer" : {
+            "internalID" : "C3F6E4A0-8D15-4B79-AC2E-3F4051627384",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "Full pool care, billed yearly.",
+              "displayName" : "My Pool Pro (Yearly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "yearly_sub",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Subscription",
+          "subscriptionGroupID" : "22166716",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
