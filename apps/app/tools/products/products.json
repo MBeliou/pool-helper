@@ -1,0 +1,21 @@
+{
+	"_note": "Mirrors current App Store Connect settings (via `deno task products:pull`). priceUSD is the base (USA) price → Apple maps it to the nearest fixed price point and equalizes territories. null = not set in ASC yet (fill in before `products:push`). Display names ≤30 chars, descriptions ≤45 chars. Note: RevenueCat prices are NOT settable via API — App Store prices come from here; Test Store prices are set in the RC dashboard.",
+	"products": [
+		{
+			"ascProductId": "yearly_sub",
+			"kind": "subscription",
+			"priceUSD": 29.99,
+			"displayName": "Premium access",
+			"description": "Premium access",
+			"reviewNote": "Pro unlocks the Diagnose wizard, full trend history, and smart reminders. Reach the paywall from the Home 'Get Pro' pill or the onboarding premium screen. Includes a 3-day free trial."
+		},
+		{
+			"ascProductId": "lifetime_pro",
+			"kind": "iap",
+			"priceUSD": null,
+			"displayName": null,
+			"description": null,
+			"reviewNote": "One-time purchase of Pro (same unlocks as the yearly plan, no renewal). Reach the paywall from the Home 'Get Pro' pill or the onboarding premium screen."
+		}
+	]
+}

@@ -5,7 +5,11 @@
 		"template": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env template.ts",
 		"frame": "deno run --allow-env --allow-net --allow-read --allow-write --allow-ffi --allow-sys --env-file=.env frame.ts",
 		"screenshots:push": "deno run --allow-env --allow-net --allow-read --env-file=.env upload-screenshots.ts",
-		"metadata:push": "deno run --allow-env --allow-net --allow-read --env-file=.env push-metadata.ts"
+		"metadata:push": "deno run --allow-env --allow-net --allow-read --env-file=.env push-metadata.ts",
+		"prices:report": "deno run --allow-env --allow-net --allow-read --env-file=.env prices.ts",
+		"products:pull": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env products-pull.ts",
+		"products:push": "deno run --allow-env --allow-net --allow-read --env-file=.env products.ts",
+		"paywall": "deno run --allow-env --allow-net --allow-read --allow-write --allow-run --env-file=.env paywall.ts"
 	},
 	"imports": {
 		"@std/crypto": "jsr:@std/crypto@^1.0.0",

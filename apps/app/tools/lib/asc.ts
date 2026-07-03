@@ -3,7 +3,8 @@
 //
 // Docs: https://developer.apple.com/documentation/appstoreconnectapi
 
-import { decodeBase64, encodeBase64Url } from "@std/encoding";
+import { crypto as stdCrypto } from "@std/crypto";
+import { decodeBase64, encodeBase64Url, encodeHex } from "@std/encoding";
 import { req } from "./env.ts";
 
 const BASE = "https://api.appstoreconnect.apple.com";
@@ -74,3 +75,56 @@ export const ascGet = (path: string) => call("GET", path);
 export const ascPost = (path: string, body: unknown) => call("POST", path, body);
 export const ascPatch = (path: string, body: unknown) => call("PATCH", path, body);
 export const ascDelete = (path: string) => call("DELETE", path);
+
+/** Follow `links.next` and return the first item where `match(item)` is true. */
+export async function findPaged<T extends { attributes: Record<string, unknown> }>(
+	path: string,
+	match: (item: T) => boolean,
+	maxPages = 30,
+): Promise<T | undefined> {
+	let url: string | null = path;
+	for (let i = 0; url && i < maxPages; i++) {
+		const r = (await call("GET", url)) as { data: T[]; links?: { next?: string } };
+		const hit = r.data.find(match);
+		if (hit) return hit;
+		url = r.links?.next ? r.links.next.replace(BASE, "") : null;
+	}
+	return undefined;
+}
+
+type UploadOp = { method: string; url: string; length: number; offset: number; requestHeaders: { name: string; value: string }[] };
+
+/**
+ * The App Store Connect asset-upload dance: reserve (POST fileName+fileSize +
+ * relationships) → PUT each pre-signed operation → commit (PATCH uploaded:true +
+ * md5 checksum). Works for any *Screenshot resource. Returns the created asset id.
+ */
+export async function uploadAsset(opts: {
+	reservePath: string;
+	resourceType: string;
+	relationships: unknown;
+	bytes: Uint8Array;
+	fileName: string;
+}): Promise<string> {
+	const reserved = (await ascPost(opts.reservePath, {
+		data: {
+			type: opts.resourceType,
+			attributes: { fileName: opts.fileName, fileSize: opts.bytes.byteLength },
+			relationships: opts.relationships,
+		},
+	})) as { data: { id: string; attributes: { uploadOperations: UploadOp[] } } };
+	const { id, attributes } = reserved.data;
+
+	for (const op of attributes.uploadOperations) {
+		const headers = new Headers();
+		for (const h of op.requestHeaders) headers.set(h.name, h.value);
+		const res = await fetch(op.url, { method: op.method, headers, body: opts.bytes.subarray(op.offset, op.offset + op.length) });
+		if (!res.ok) throw new Error(`upload PUT ${opts.fileName} failed: ${res.status} ${await res.text()}`);
+	}
+
+	const md5 = encodeHex(new Uint8Array(await stdCrypto.subtle.digest("MD5", opts.bytes as BufferSource)));
+	await ascPatch(`${opts.reservePath}/${id}`, {
+		data: { type: opts.resourceType, id, attributes: { uploaded: true, sourceFileChecksum: md5 } },
+	});
+	return id;
+}
