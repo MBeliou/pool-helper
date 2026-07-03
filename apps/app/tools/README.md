@@ -18,12 +18,30 @@ deno task ping            # verifies renderfast + App Store Connect auth
 ## Workflow
 
 ```sh
-deno task capture          # 1. guided grab from the booted simulator → out/raw/<id>.png
+deno task capture          # 1. automated: seeds demo data + navigates via mypool://
+                           #    deep links, grabs each screen → out/raw/<id>.png
+                           #    (needs a cap:dev build running; use -- --manual to drive by hand)
 deno task frame            # 2. composite → out/framed/<id>.png (brand bg + headline +
                            #    screenshot inside assets/iphone-frame.svg)
 deno task screenshots:push # 3. upload out/framed/** to the 6.7"/6.9" set (idempotent)
 deno task metadata:push    # 4. push listing copy from metadata/** (idempotent)
 ```
+
+### Subscriptions / IAP (products)
+
+```sh
+deno task prices:report               # read-only: price + state + missing pieces per product
+deno task paywall                     # grab the RC paywall (cap:prod build + sandbox) → out/paywall/
+deno task products:push -- --target=asc  # set price + localization + review screenshot from
+                                         # products/products.json (edit the lifetime price first!)
+deno task products:push -- --target=rc   # verify RC structure (needs RC_SECRET_API_KEY; RC can't set prices)
+```
+
+### Deep links (screenshot automation)
+
+The app registers a `mypool://` URL scheme (`Info.plist` + `src/lib/pool/native/deepLinks.ts`):
+`mypool://go/<route>` navigates; `mypool://seed/problem` (DEV only) onboards + loads demo data.
+After changing the scheme or handler, run `pnpm cap sync` and rebuild (`pnpm cap:dev`).
 
 - **Screens** (routes, headlines, subheads): `screens.ts`.
 - **Listing copy**: `metadata/en-US/*.txt` + `metadata/urls.txt`.
