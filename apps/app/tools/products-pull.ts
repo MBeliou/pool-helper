@@ -4,8 +4,17 @@
 //   deno task products:pull
 
 import { fromFileUrl } from "@std/path";
-import { ascGet } from "./lib/asc.ts";
+import { ascGet, findPaged } from "./lib/asc.ts";
 import { resolveAppId } from "./lib/ascApp.ts";
+
+/** App Store Connect price ids base64-encode `{s,t,p,…}`; return the price-point number `p`. */
+function decodeP(id: string): string | null {
+	try {
+		return JSON.parse(atob(id)).p ?? null;
+	} catch {
+		return null;
+	}
+}
 
 type Product = {
 	ascProductId: string;
@@ -59,11 +68,17 @@ async function pullIap(id: string) {
 	let priceUSD: number | null = null;
 	const priceId = sched?.data?.relationships?.manualPrices?.data?.[0]?.id;
 	if (priceId) {
-		const pr = (await g(`/v1/inAppPurchasePrices/${priceId}?include=inAppPurchasePricePoint`)) as
-			| { included?: { type: string; attributes: { customerPrice: string } }[] }
-			| null;
-		const cp = pr?.included?.find((i) => i.type === "inAppPurchasePricePoints")?.attributes.customerPrice;
-		if (cp) priceUSD = Number(cp);
+		// GET /v1/inAppPurchasePrices/{id} 403s, so resolve the amount from the price
+		// point instead: the manual-price id base64-decodes to {s,t,p,…} where p is the
+		// price-point number. Match that against the product's USA price points.
+		const targetP = decodeP(priceId);
+		if (targetP) {
+			const point = await findPaged<{ id: string; attributes: { customerPrice: string } }>(
+				`/v2/inAppPurchases/${id}/pricePoints?filter[territory]=USA&limit=200`,
+				(pp) => decodeP(pp.id) === targetP,
+			);
+			if (point) priceUSD = Number(point.attributes.customerPrice);
+		}
 	}
 	const loc = list(await g(`/v2/inAppPurchases/${id}/inAppPurchaseLocalizations?limit=10`)).find((l) => l.attributes.locale === "en-US");
 	return {

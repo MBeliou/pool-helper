@@ -12,9 +12,9 @@
 		{
 			"ascProductId": "lifetime_pro",
 			"kind": "iap",
-			"priceUSD": null,
-			"displayName": null,
-			"description": null,
+			"priceUSD": 59.99,
+			"displayName": "My Pool Pro (Lifetime)",
+			"description": "Full pool care, one-time purchase.",
 			"reviewNote": "One-time purchase of Pro (same unlocks as the yearly plan, no renewal). Reach the paywall from the Home 'Get Pro' pill or the onboarding premium screen."
 		}
 	]

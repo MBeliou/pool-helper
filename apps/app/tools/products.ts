@@ -9,7 +9,7 @@
 
 import { fromFileUrl } from "@std/path";
 import { ascDelete, ascGet, ascPatch, ascPost, findPaged, uploadAsset } from "./lib/asc.ts";
-import { resolveAppId } from "./lib/ascApp.ts";
+import { allTerritoryIds, readAvailability, resolveAppId } from "./lib/ascApp.ts";
 import { opt } from "./lib/env.ts";
 
 type Product = {
@@ -48,11 +48,12 @@ if (target === "rc") {
 // ── App Store Connect ────────────────────────────────────────────────────────
 const appId = await resolveAppId();
 
-// index subscriptions + IAPs by productId
-const subs: Record<string, string> = {};
+// index subscriptions + IAPs by productId (subs carry their group for the group localization)
+type SubRef = { id: string; groupId: string; groupName: string };
+const subs: Record<string, SubRef> = {};
 for (const grp of list(await ascGet(`/v1/apps/${appId}/subscriptionGroups?limit=25`))) {
 	for (const s of list(await ascGet(`/v1/subscriptionGroups/${grp.id}/subscriptions?limit=50`))) {
-		subs[s.attributes.productId as string] = s.id;
+		subs[s.attributes.productId as string] = { id: s.id, groupId: grp.id, groupName: grp.attributes.referenceName as string };
 	}
 }
 const iaps: Record<string, string> = {};
@@ -71,8 +72,43 @@ for (const p of cfg.products) {
 console.log(`Done. Verify with: deno task prices:report`);
 
 // ── subscription ─────────────────────────────────────────────────────────────
-async function pushSubscription(p: Product, id: string | undefined) {
-	if (!id) return console.error(`  ✗ not found in App Store Connect`);
+async function pushSubscription(p: Product, ref: SubRef | undefined) {
+	if (!ref) return console.error(`  ✗ not found in App Store Connect`);
+	const { id } = ref;
+
+	// A subscription group needs a localized display name, or every subscription in
+	// it stays MISSING_METADATA — ensure the en-US group localization exists.
+	await step("group localization", async () => {
+		const existing = list(await ascGet(`/v1/subscriptionGroups/${ref.groupId}/subscriptionGroupLocalizations?limit=10`))
+			.find((l) => l.attributes.locale === "en-US");
+		if (existing) return `already "${existing.attributes.name}"`;
+		await ascPost(`/v1/subscriptionGroupLocalizations`, {
+			data: {
+				type: "subscriptionGroupLocalizations",
+				attributes: { locale: "en-US", name: ref.groupName },
+				relationships: { subscriptionGroup: { data: { type: "subscriptionGroups", id: ref.groupId } } },
+			},
+		});
+		return `created "${ref.groupName}"`;
+	});
+
+	// A subscription with no territory availability stays MISSING_METADATA.
+	await step("availability", async () => {
+		const av = await readAvailability("subscription", id);
+		if (av.set) return `already ${av.territoryCount} territories`;
+		const territories = await allTerritoryIds();
+		await ascPost(`/v1/subscriptionAvailabilities`, {
+			data: {
+				type: "subscriptionAvailabilities",
+				attributes: { availableInNewTerritories: true },
+				relationships: {
+					subscription: { data: { type: "subscriptions", id } },
+					availableTerritories: { data: territories.map((t) => ({ type: "territories", id: t })) },
+				},
+			},
+		});
+		return `set ${territories.length} territories`;
+	});
 
 	if (p.priceUSD == null) console.log(`  • price: skipped (null in config)`);
 	else {await step("price", async () => {
@@ -137,6 +173,11 @@ async function pushIap(p: Product, id: string | undefined) {
 
 	if (p.priceUSD == null) console.log(`  • price: skipped (null in config)`);
 	else {await step("price", async () => {
+		// don't duplicate an existing price schedule (IAP prices, once set, aren't re-set here)
+		const sched = (await ascGet(`/v2/inAppPurchases/${id}/iapPriceSchedule?include=manualPrices`).catch(() => null)) as
+			| { data?: { relationships?: { manualPrices?: { data?: unknown[] } } } }
+			| null;
+		if (sched?.data?.relationships?.manualPrices?.data?.length) return `already priced`;
 		const point = await findPaged<{ id: string; attributes: { customerPrice: string } }>(
 			`/v2/inAppPurchases/${id}/pricePoints?filter[territory]=USA&limit=200`,
 			(x) => x.attributes.customerPrice === String(p.priceUSD),
@@ -184,9 +225,9 @@ async function pushIap(p: Product, id: string | undefined) {
 		await step("review screenshot", async () => {
 			const cur = await ascGet(`/v2/inAppPurchases/${id}/appStoreReviewScreenshot`).catch(() => null);
 			const curId = dataId(cur);
-			if (curId) await ascDelete(`/v2/inAppPurchaseAppStoreReviewScreenshots/${curId}`);
+			if (curId) await ascDelete(`/v1/inAppPurchaseAppStoreReviewScreenshots/${curId}`);
 			await uploadAsset({
-				reservePath: "/v2/inAppPurchaseAppStoreReviewScreenshots",
+				reservePath: "/v1/inAppPurchaseAppStoreReviewScreenshots",
 				resourceType: "inAppPurchaseAppStoreReviewScreenshots",
 				relationships: { inAppPurchaseV2: { data: { type: "inAppPurchases", id } } },
 				bytes: paywall,

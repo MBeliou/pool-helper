@@ -53,3 +53,36 @@ export async function enUsAppInfoLoc(infoId: string): Promise<Data> {
 }
 
 export { one };
+
+/**
+ * Read a product's territory availability. Subscriptions and IAPs use different
+ * relationship names (`subscriptionAvailability` vs `inAppPurchaseAvailability`);
+ * a 404 means availability was never configured. A subscription with no
+ * availability stays MISSING_METADATA.
+ */
+export async function readAvailability(
+	kind: "subscription" | "iap",
+	id: string,
+): Promise<{ set: boolean; availableInNewTerritories: boolean; territoryCount: number }> {
+	const path = kind === "subscription"
+		? `/v1/subscriptions/${id}/subscriptionAvailability`
+		: `/v2/inAppPurchases/${id}/inAppPurchaseAvailability`;
+	try {
+		const r = (await ascGet(`${path}?include=availableTerritories`)) as {
+			data?: { attributes?: { availableInNewTerritories?: boolean }; relationships?: { availableTerritories?: { meta?: { paging?: { total?: number } } } } };
+		};
+		return {
+			set: !!r.data,
+			availableInNewTerritories: !!r.data?.attributes?.availableInNewTerritories,
+			territoryCount: r.data?.relationships?.availableTerritories?.meta?.paging?.total ?? 0,
+		};
+	} catch (e) {
+		if (String(e).includes(" 404 ")) return { set: false, availableInNewTerritories: false, territoryCount: 0 };
+		throw e;
+	}
+}
+
+/** All App Store territory ids (≈175). */
+export async function allTerritoryIds(): Promise<string[]> {
+	return list(await ascGet(`/v1/territories?limit=200`)).map((t) => t.id);
+}
