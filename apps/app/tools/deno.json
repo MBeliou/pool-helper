@@ -6,6 +6,7 @@
 		"frame": "deno run --allow-env --allow-net --allow-read --allow-write --allow-ffi --allow-sys --env-file=.env frame.ts",
 		"screenshots:push": "deno run --allow-env --allow-net --allow-read --env-file=.env upload-screenshots.ts",
 		"metadata:push": "deno run --allow-env --allow-net --allow-read --env-file=.env push-metadata.ts",
+		"readiness": "deno run --allow-env --allow-net --allow-read --env-file=.env readiness.ts",
 		"prices:report": "deno run --allow-env --allow-net --allow-read --env-file=.env prices.ts",
 		"products:pull": "deno run --allow-env --allow-net --allow-read --allow-write --env-file=.env products-pull.ts",
 		"products:push": "deno run --allow-env --allow-net --allow-read --env-file=.env products.ts",
