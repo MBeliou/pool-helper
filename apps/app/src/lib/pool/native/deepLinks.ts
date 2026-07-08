@@ -3,8 +3,11 @@
 // platform guard so the web build never bundles it.
 //
 //   mypool://go/<route>     → navigate the router (e.g. go/results, go/care/diagnose/1)
-//   mypool://seed/problem   → (DEV only) onboard + load demo data, then go home
+//   mypool://seed/problem   → (DEV only) load demo data (profile + history), then go home
 //   mypool://seed/balanced  → (DEV only) same, with the balanced-pool scenario
+//   mypool://seed/<id>      → (DEV only) a guidance-engine scenario from
+//                             demoScenarios.ts (cya-zero, high-ta, corrosive,
+//                             bromine-low, swg-nudge, safety-floor)
 import { Capacitor } from '@capacitor/core';
 import { goto } from '$app/navigation';
 import { app } from '$lib/pool/state/app.svelte';
@@ -23,12 +26,16 @@ async function handle(url: string): Promise<void> {
 		return;
 	}
 
-	// DEV-only "feed": create a demo profile + load a scenario so a fresh install
-	// lands on populated screens (satisfies the onboarding gate too).
+	// DEV-only "feed": load a scenario so a fresh install lands on populated
+	// screens. Seeders write the profile row (onboarded: true) themselves;
+	// reloadProfile() hydrates it, satisfying the onboarding gate.
 	if (host === 'seed' && import.meta.env.DEV) {
-		await app.finishOnboarding();
-		const { seedProblemPool, seedBalancedPool } = await import('$lib/pool/db/demoData');
-		await (path === '/balanced' ? seedBalancedPool() : seedProblemPool());
+		const demo = await import('$lib/pool/db/demoData');
+		const slug = path.replace(/^\//, '');
+		const scenario = demo.GUIDANCE_SCENARIOS.find((candidate) => candidate.id === slug);
+		if (scenario) await scenario.load();
+		else await (slug === 'balanced' ? demo.seedBalancedPool() : demo.seedProblemPool());
+		await app.reloadProfile();
 		await goto('/', { replaceState: true });
 		return;
 	}

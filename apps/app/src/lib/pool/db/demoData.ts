@@ -1,7 +1,9 @@
 // Demo data scenarios so display and flow can be exercised in different states.
-// Reachable from the More screen's Developer section.
+// Reachable from the More screen's Developer section and mypool://seed/<id>.
 import { desc } from 'drizzle-orm';
 import { database } from './connection';
+import { loadProfile, saveProfile, type ProfileValues } from './profileRepository';
+import { DEMO_BASE_POOL, GUIDANCE_SCENARIO_DEFINITIONS, type HistoryRow } from './demoScenarios';
 import {
 	actionsTable,
 	diagnosesTable,
@@ -18,6 +20,52 @@ function daysAgoAt(days: number, hour: number, minute = 0): Date {
 	const date = new Date(Date.now() - days * DAY_MS);
 	date.setHours(hour, minute, 0, 0);
 	return date;
+}
+
+// Scenarios write the PROFILE too — guidance output depends on it (sanitiser,
+// surface, sun, volume), so a scenario is only reproducible with both halves.
+const DEMO_BASE_PROFILE: ProfileValues = {
+	onboarded: true,
+	name: 'My pool',
+	shape: 'Oval',
+	...DEMO_BASE_POOL,
+	filter: 'Sand',
+	unitsPreset: 'Metric (most of world)',
+	temperatureUnit: '°C',
+	tester: 'AquaChek 7-in-1',
+	reminderDays: 3,
+	disclaimerAcceptedAt: null
+};
+
+async function writeDemoProfile(overrides: Partial<ProfileValues>): Promise<void> {
+	const currentProfile = await loadProfile();
+	await saveProfile({
+		...DEMO_BASE_PROFILE,
+		// sticky user acknowledgement, not scenario data — don't re-prompt on dose views
+		disclaimerAcceptedAt: currentProfile?.disclaimerAcceptedAt ?? null,
+		...overrides
+	});
+}
+
+function toTestRows(
+	history: HistoryRow[],
+	options?: { tester?: string; unit?: 'ppm' | '°fH'; hour?: number }
+): NewTestRow[] {
+	const { tester = 'AquaChek 7-in-1', unit = 'ppm', hour = 8 } = options ?? {};
+	return history.map(
+		([daysAgo, ph, freeChlorine, totalAlkalinity, calciumHardness, cyanuricAcid, temperature]) => ({
+			testedAt: daysAgoAt(daysAgo, hour, 30),
+			tester,
+			ph,
+			freeChlorine,
+			totalAlkalinity,
+			totalAlkalinityUnit: unit,
+			calciumHardness,
+			calciumHardnessUnit: unit,
+			cyanuricAcid,
+			temperature
+		})
+	);
 }
 
 export async function clearLoggedData(): Promise<void> {
@@ -75,9 +123,9 @@ async function latestIssueId(): Promise<number> {
  */
 export async function seedProblemPool(): Promise<void> {
 	await clearLoggedData();
+	await writeDemoProfile({ volume: 50_000 });
 
-	// (daysAgo, ph, fc, ta, chPpm, cya, temp°C)
-	const history: [number, number, number, number, number, number, number][] = [
+	const history: HistoryRow[] = [
 		[32, 7.3, 3.2, 95, 235, 38, 21],
 		[29, 7.3, 3.0, 92, 238, 39, 22],
 		[26, 7.4, 2.8, 94, 240, 40, 22],
@@ -91,21 +139,7 @@ export async function seedProblemPool(): Promise<void> {
 		[2, 7.8, 1.0, 90, 240, 45, 26],
 		[0, 7.8, 0.8, 90, 240, 45, 26]
 	];
-	const testRows: NewTestRow[] = history.map(
-		([daysAgo, ph, freeChlorine, totalAlkalinity, calciumHardness, cyanuricAcid, temperature]) => ({
-			testedAt: daysAgoAt(daysAgo, 8, 30),
-			tester: 'AquaChek 7-in-1',
-			ph,
-			freeChlorine,
-			totalAlkalinity,
-			totalAlkalinityUnit: 'ppm' as const,
-			calciumHardness,
-			calciumHardnessUnit: 'ppm' as const,
-			cyanuricAcid,
-			temperature
-		})
-	);
-	await database.insert(testsTable).values(testRows);
+	await database.insert(testsTable).values(toTestRows(history));
 
 	// issue 1 · cloudy water, mid-resolution
 	await database.insert(issuesTable).values({
@@ -240,8 +274,9 @@ export async function seedProblemPool(): Promise<void> {
  */
 export async function seedBalancedPool(): Promise<void> {
 	await clearLoggedData();
-	// (daysAgo, ph, fc, ta °fH, ch °fH, cya, temp °C)
-	const history: [number, number, number, number, number, number, number][] = [
+	await writeDemoProfile({ hardnessUnit: '°fH', tester: 'Taylor K-2006', volume: 50_000 });
+	// (ta/ch in °fH — French kit)
+	const history: HistoryRow[] = [
 		[21, 7.4, 3.1, 10.2, 25.2, 41, 25],
 		[18, 7.4, 3.0, 10.0, 25.0, 40, 26],
 		[15, 7.5, 2.9, 9.8, 25.1, 40, 26],
@@ -251,24 +286,36 @@ export async function seedBalancedPool(): Promise<void> {
 		[3, 7.4, 2.9, 10.0, 25.1, 40, 28],
 		[0, 7.4, 3.0, 10.0, 25.0, 40, 28]
 	];
-	const testRows: NewTestRow[] = history.map(
-		([daysAgo, ph, freeChlorine, totalAlkalinity, calciumHardness, cyanuricAcid, temperature]) => ({
-			testedAt: daysAgoAt(daysAgo, 9, 0),
-			tester: 'Taylor K-2006',
-			ph,
-			freeChlorine,
-			totalAlkalinity,
-			totalAlkalinityUnit: '°fH' as const,
-			calciumHardness,
-			calciumHardnessUnit: '°fH' as const,
-			cyanuricAcid,
-			temperature
-		})
-	);
-	await database.insert(testsTable).values(testRows);
+	await database
+		.insert(testsTable)
+		.values(toTestRows(history, { tester: 'Taylor K-2006', unit: '°fH', hour: 9 }));
 	await database
 		.insert(actionsTable)
 		.values([
 			{ performedAt: daysAgoAt(5, 18), title: 'Backwashed filter', detail: 'Routine maintenance' }
 		]);
 }
+
+// ── guidance-engine scenarios ──────────────────────────────────────────
+// One seeder per canonical engine.spec.ts case; the data lives in
+// demoScenarios.ts (pure) so demoScenarios.spec.ts pins it to the engine.
+
+export interface DemoScenario {
+	id: string;
+	title: string;
+	description: string;
+	load: () => Promise<void>;
+}
+
+export const GUIDANCE_SCENARIOS: DemoScenario[] = GUIDANCE_SCENARIO_DEFINITIONS.map(
+	(definition) => ({
+		id: definition.id,
+		title: definition.title,
+		description: definition.description,
+		load: async () => {
+			await clearLoggedData();
+			await writeDemoProfile(definition.profile);
+			await database.insert(testsTable).values(toTestRows(definition.history));
+		}
+	})
+);

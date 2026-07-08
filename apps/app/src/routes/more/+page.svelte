@@ -11,11 +11,13 @@
 	import ComingSoonSheet from '$lib/pool/components/ComingSoonSheet.svelte';
 	import { countTests } from '$lib/pool/db/testsRepository';
 	import {
+		GUIDANCE_SCENARIOS,
 		clearLoggedData,
 		seedBalancedPool,
 		seedProblemPool,
 		seedSingleTest,
-		wipeAllData
+		wipeAllData,
+		type DemoScenario
 	} from '$lib/pool/db/demoData';
 	import { cancelTestReminder, sendTestNotificationNow } from '$lib/pool/reminders';
 	import { shareExport } from '$lib/pool/dataExport';
@@ -86,6 +88,18 @@
 		await seed();
 		testCount = await countTests();
 		seedStatus = label;
+	}
+
+	// scenario seeders also rewrite the profile row — re-hydrate the in-memory state
+	function runScenario(seed: () => Promise<void>, label: string) {
+		return runSeed(async () => {
+			await seed();
+			await app.reloadProfile();
+		}, label);
+	}
+
+	function runGuidanceScenario(scenario: DemoScenario) {
+		return runScenario(scenario.load, `${scenario.title} loaded`);
 	}
 
 	// Fire a one-off notification ~5s out to verify on-device delivery.
@@ -317,7 +331,7 @@
 					style="background:{palette.card};border-radius:16px;box-shadow:{palette.shadow};overflow:hidden;"
 				>
 					<button
-						onclick={() => runSeed(seedProblemPool, 'Problem pool loaded')}
+						onclick={() => runScenario(seedProblemPool, 'Problem pool loaded')}
 						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:none;border:none;text-align:left;font-family:var(--font-sans);"
 					>
 						<div>
@@ -331,7 +345,7 @@
 						<Icon name="beaker" size={15} color={palette.inkMuted} strokeWidth={2} />
 					</button>
 					<button
-						onclick={() => runSeed(seedBalancedPool, 'Balanced pool loaded')}
+						onclick={() => runScenario(seedBalancedPool, 'Balanced pool loaded')}
 						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
 					>
 						<div>
@@ -344,6 +358,22 @@
 						</div>
 						<Icon name="shield" size={15} color={palette.inkMuted} strokeWidth={2} />
 					</button>
+					{#each GUIDANCE_SCENARIOS as scenario (scenario.id)}
+						<button
+							onclick={() => runGuidanceScenario(scenario)}
+							style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+						>
+							<div>
+								<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
+									Load scenario · {scenario.title}
+								</div>
+								<div style="font-size:11.5px;color:{palette.inkMuted};">
+									{scenario.description}
+								</div>
+							</div>
+							<Icon name="beaker" size={15} color={palette.inkMuted} strokeWidth={2} />
+						</button>
+					{/each}
 					<button
 						onclick={() => runSeed(seedSingleTest, 'Sample test logged')}
 						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"

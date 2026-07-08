@@ -83,6 +83,12 @@ class AppState {
 		return this.loadPromise;
 	}
 
+	/** Re-hydrate the in-memory profile from the DB (dev seeders write the profile row directly). */
+	async reloadProfile(): Promise<void> {
+		const storedProfile = await loadProfile();
+		if (storedProfile) this.applyProfile(storedProfile);
+	}
+
 	/** Full restart is the most reliable recovery from a half-initialized native bridge. */
 	retryLoad(): void {
 		resetDatabaseInitialization();
