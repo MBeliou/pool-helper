@@ -9,6 +9,7 @@ import {
 	scaleFraction,
 	testValue,
 	type DisplayUnits,
+	type ParameterDefinition,
 	type ParameterKey,
 	type ReadingStatus
 } from './chemistry';
@@ -42,9 +43,14 @@ const DIRECTION_NOTES: Record<TrendDirection, string> = {
 const DIRECTION_THRESHOLD = 0.08; // fraction-of-scale change considered a real move
 
 /** trends for all chemistry parameters that have at least one reading; oldest-first input */
-export function buildTrends(tests: TestRow[], displayUnits: DisplayUnits): ParameterTrend[] {
+export function buildTrends(
+	tests: TestRow[],
+	displayUnits: DisplayUnits,
+	// profile-derived definitions (guidance/displayBands.ts) — static fallback
+	parameters: ParameterDefinition[] = PARAMETERS
+): ParameterTrend[] {
 	const trends: ParameterTrend[] = [];
-	for (const parameter of PARAMETERS) {
+	for (const parameter of parameters) {
 		if (parameter.key === 'temp') continue;
 		const samples = tests
 			.map((test) => ({ date: test.testedAt, value: testValue(test, parameter.key) }))

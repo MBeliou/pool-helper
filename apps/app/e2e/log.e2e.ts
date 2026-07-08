@@ -33,6 +33,7 @@ test('an out-of-range reading produces a fix-plan action (dosing pipeline)', asy
 	await page.getByRole('button', { name: /save/i }).click();
 
 	await expect(page).toHaveURL(/\/results/);
-	// dose depends on the (default 50,000 L) volume being usable end-to-end
-	await expect(page.getByText('Raise free chlorine')).toBeVisible();
+	// dose depends on the (default 50,000 L) volume being usable end-to-end;
+	// with no CYA logged the engine's absolute safety floor drives the action
+	await expect(page.getByText('Raise chlorine now')).toBeVisible();
 });

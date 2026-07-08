@@ -19,7 +19,11 @@
 		const fixPlan = computeFixPlan(latestTest, {
 			volume: app.volume,
 			volumeUnit: app.volumeUnit,
-			hardnessUnit: app.hardnessUnit
+			hardnessUnit: app.hardnessUnit,
+			surface: app.surface,
+			sanitiser: app.sanitiser,
+			location: app.location,
+			sunExposure: app.sunExposure
 		});
 		dosedActions = fixPlan.actions.filter((action) => action.doseText);
 		loaded = true;

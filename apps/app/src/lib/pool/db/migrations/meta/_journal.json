@@ -64,6 +64,13 @@
 			"when": 1781786601308,
 			"tag": "0008_cool_skreet",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "6",
+			"when": 1783521697462,
+			"tag": "0009_pool_location_sun_exposure",
+			"breakpoints": true
 		}
 	]
 }

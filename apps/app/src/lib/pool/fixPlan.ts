@@ -1,20 +1,19 @@
 // ──────────────────────────────────────────────────────────────────────
-// Fix-plan derivation (the seam for the upcoming resolution pipeline).
-// Targets are naive ideal-band midpoints; replace the selection logic,
-// keep the shapes. All dose math is delegated to the canonical
-// computation in dosing.ts — nothing here computes chemistry.
+// Fix-plan derivation — the bridge from the guidance engine to the UI.
+// Target selection, root-cause reasoning and sequencing live in
+// guidance/engine.ts (pure, spec-tested); this module renders the
+// engine's actions into display shapes and attaches doses through the
+// canonical computation in dosing.ts — nothing here computes chemistry.
 // ──────────────────────────────────────────────────────────────────────
 import type { TestRow } from './db/schema';
 import type { IconName } from './icons';
 import { localeTag } from './localeFormat';
 import { LITRES_PER_VOLUME_UNIT, type HardnessUnit, type VolumeUnit } from './units';
 import {
-	PARAMETERS,
 	displayUnitText,
 	displayValue,
 	formatReading,
 	parameterByKey,
-	readingStatus,
 	testValue,
 	type DisplayUnits,
 	type ParameterDefinition,
@@ -27,12 +26,26 @@ import {
 	type DoseRequest,
 	type DosingProduct
 } from './dosing';
+import { runGuidance, type GuidanceReadings, type GuidanceResult } from './guidance/engine';
+import {
+	locationFromProfile,
+	sanitizerLevelLabel,
+	sanitizerTypeFromProfile,
+	sunExposureFromProfile,
+	surfaceTypeFromProfile,
+	type GuidanceConfig
+} from './guidance/targets';
 
-export interface PoolDosingProfile {
+export interface PoolGuidanceProfile {
 	/** pool volume in volumeUnit, as a real number (null = not set) */
 	volume: number | null;
 	volumeUnit: VolumeUnit;
 	hardnessUnit: HardnessUnit;
+	// profile display strings as stored ('Salt (SWG)', 'Mostly shaded', …)
+	surface: string;
+	sanitiser: string;
+	location: string;
+	sunExposure: string;
 }
 
 export interface FixAction {
@@ -42,7 +55,11 @@ export interface FixAction {
 	title: string;
 	/** "0.8 → 3.0 ppm" */
 	rangeText: string;
-	/** "Add 680 g" — null when the fix isn't a dosed product */
+	/** root-cause reasoning ("high TA keeps dragging pH up…") — null when self-evident */
+	why: string | null;
+	/** delay guidance before the next chemical goes in */
+	waitNote: string | null;
+	/** "Add 680 g" — null when the fix isn't a dosed product (dilution, aeration, SWG dial) */
 	doseText: string | null;
 	productName: string;
 	productOptions: DosingProduct[];
@@ -50,6 +67,13 @@ export interface FixAction {
 	doseRequest: DoseRequest | null;
 	/** rows for the expanded dosing-math panel */
 	mathRows: [string, string][];
+}
+
+export interface DeferredFix {
+	key: ParameterKey;
+	title: string;
+	/** why it waits ("the acid dose is already lowering it — retest first") */
+	reason: string;
 }
 
 export interface InRangeReading {
@@ -60,25 +84,40 @@ export interface InRangeReading {
 }
 
 export interface FixPlanResult {
+	/** actions safe to do now, in engine priority order */
 	actions: FixAction[];
+	/** adjustments gated behind a retest */
+	deferred: DeferredFix[];
 	inRange: InRangeReading[];
-}
-
-// titles per parameter/direction; products come from the dosing catalogue
-const ACTION_TITLES: Partial<Record<ParameterKey, Partial<Record<'low' | 'high', string>>>> = {
-	fc: { low: 'Raise free chlorine', high: 'Let chlorine drift down' },
-	ph: { low: 'Raise pH', high: 'Lower pH' },
-	ta: { low: 'Raise alkalinity', high: 'Lower alkalinity' },
-	ch: { low: 'Raise hardness', high: 'Lower hardness' },
-	cya: { low: 'Raise stabiliser', high: 'Lower stabiliser' }
-};
-
-function idealMidpoint(parameter: ParameterDefinition): number {
-	return ((parameter.idealLow ?? 0) + (parameter.idealHigh ?? 0)) / 2;
+	/** engine warnings that aren't actions (e.g. "FC won't hold with CYA at 0") */
+	notices: string[];
+	/** readings the engine wants next time ("water temperature for the scaling check") */
+	requestInput: string[];
 }
 
 export function volumeToCubicMetres(volume: number | null, volumeUnit: VolumeUnit): number {
 	return ((volume ?? 0) * LITRES_PER_VOLUME_UNIT[volumeUnit]) / 1000;
+}
+
+export function guidanceConfigFromProfile(poolProfile: PoolGuidanceProfile): GuidanceConfig {
+	return {
+		volumeLitres: volumeToCubicMetres(poolProfile.volume, poolProfile.volumeUnit) * 1000,
+		sanitizer: sanitizerTypeFromProfile(poolProfile.sanitiser),
+		surface: surfaceTypeFromProfile(poolProfile.surface),
+		location: locationFromProfile(poolProfile.location),
+		sunExposure: sunExposureFromProfile(poolProfile.sunExposure)
+	};
+}
+
+export function guidanceReadingsFromTest(latestTest: TestRow): GuidanceReadings {
+	return {
+		fc: testValue(latestTest, 'fc'),
+		ph: testValue(latestTest, 'ph'),
+		ta: testValue(latestTest, 'ta'),
+		ch: testValue(latestTest, 'ch'),
+		cya: testValue(latestTest, 'cya'),
+		temp: testValue(latestTest, 'temp')
+	};
 }
 
 function formatDisplayValue(
@@ -145,78 +184,133 @@ export function repriceAction(
 	};
 }
 
-/** Derive the fix plan from the latest test. Targets are placeholder midpoints. */
+/** Derive the fix plan from the latest test through the guidance engine. */
 export function computeFixPlan(
 	latestTest: TestRow | undefined,
-	poolProfile: PoolDosingProfile
+	poolProfile: PoolGuidanceProfile
 ): FixPlanResult {
-	const actions: FixAction[] = [];
-	const inRange: InRangeReading[] = [];
-	if (!latestTest) return { actions, inRange };
+	const empty: FixPlanResult = {
+		actions: [],
+		deferred: [],
+		inRange: [],
+		notices: [],
+		requestInput: []
+	};
+	if (!latestTest) return empty;
 
-	const poolVolumeLitres = volumeToCubicMetres(poolProfile.volume, poolProfile.volumeUnit) * 1000;
+	const config = guidanceConfigFromProfile(poolProfile);
+	const guidance: GuidanceResult = runGuidance(guidanceReadingsFromTest(latestTest), config);
+
 	const displayUnits: DisplayUnits = {
 		hardnessUnit: poolProfile.hardnessUnit,
 		temperatureUnit: '°C' // temperature is never dosed
 	};
 	const totalAlkalinityPpm = testValue(latestTest, 'ta') ?? undefined;
+	const levelShortLabel = sanitizerLevelLabel(config.sanitizer).shortLabel;
 
-	for (const parameter of PARAMETERS) {
-		if (parameter.key === 'temp') continue;
-		const canonicalValue = testValue(latestTest, parameter.key);
-		if (canonicalValue === null) continue;
-
-		const status = readingStatus(parameter, canonicalValue);
+	const actions: FixAction[] = guidance.actions.map((engineAction) => {
+		const parameter = parameterByKey[engineAction.parameter];
 		const unitText = displayUnitText(parameter, displayUnits);
-		if (status === 'ok' || status === 'info') {
-			inRange.push({
-				key: parameter.key,
+		const currentText = formatDisplayValue(parameter, engineAction.currentValue, displayUnits);
+		const targetText = formatDisplayValue(parameter, engineAction.targetValue, displayUnits);
+		const rangeText = `${currentText} → ${targetText}${unitText ? ` ${unitText}` : ''}`;
+
+		// only real product doses go through the dosing catalogue
+		if (engineAction.kind !== 'dose') {
+			return {
+				key: engineAction.parameter,
+				status: engineAction.status,
 				icon: parameter.icon,
-				title: parameter.shortLabel,
-				rangeText:
-					`${formatDisplayValue(parameter, canonicalValue, displayUnits)}` +
-					`${unitText ? ` ${unitText}` : ''} · in range`
-			});
-			continue;
+				title: engineAction.title,
+				rangeText,
+				why: engineAction.why,
+				waitNote: engineAction.waitNote,
+				doseText: null,
+				productName: '',
+				productOptions: [],
+				doseRequest: null,
+				mathRows: []
+			};
 		}
 
-		const title = ACTION_TITLES[parameter.key]?.[status];
-		if (!title) continue;
-
-		const target = idealMidpoint(parameter);
-		const direction = status === 'low' ? 'raise' : 'lower';
-		const productOptions = productsFor(parameter.key, direction);
+		const productOptions = productsFor(
+			engineAction.parameter,
+			engineAction.direction,
+			config.sanitizer
+		);
 		const defaultProduct = productOptions.find((product) => !product.disabledReason);
 		const doseRequest: DoseRequest = {
-			parameter: parameter.key,
-			currentValue: canonicalValue,
-			targetValue: target,
-			poolVolumeLitres,
+			parameter: engineAction.parameter,
+			currentValue: engineAction.currentValue,
+			targetValue: engineAction.targetValue,
+			poolVolumeLitres: config.volumeLitres ?? 0,
 			totalAlkalinityPpm
 		};
-		const currentText = formatDisplayValue(parameter, canonicalValue, displayUnits);
-		const targetText = formatDisplayValue(parameter, target, displayUnits);
 
-		actions.push({
-			key: parameter.key,
-			status,
+		return {
+			key: engineAction.parameter,
+			status: engineAction.status,
 			icon: parameter.icon,
-			title,
-			rangeText: `${currentText} → ${targetText}${unitText ? ` ${unitText}` : ''}`,
+			title: engineAction.title,
+			rangeText,
+			why: engineAction.why,
+			waitNote: engineAction.waitNote,
 			doseText: defaultProduct ? doseTextFor(doseRequest, defaultProduct) : null,
 			productName: defaultProduct?.name ?? '',
 			productOptions,
 			doseRequest: defaultProduct ? doseRequest : null,
 			mathRows: defaultProduct
 				? mathRowsFor(
-						{ request: doseRequest, parameter, status },
+						{ request: doseRequest, parameter, status: engineAction.status },
 						defaultProduct,
 						displayUnits,
-						unitText
+						displayUnitText(parameter, displayUnits)
 					)
 				: []
-		});
+		};
+	});
+
+	const deferred: DeferredFix[] = guidance.deferred.map((entry) => ({
+		key: entry.parameter,
+		title: entry.title,
+		reason: entry.reason
+	}));
+
+	const inRange: InRangeReading[] = [];
+	const notices: string[] = [];
+	const actionKeys = new Set(actions.map((action) => action.key));
+
+	for (const verdict of guidance.verdicts) {
+		if (verdict.parameter === 'temp' || verdict.status === 'not-tested') continue;
+		const parameter = parameterByKey[verdict.parameter];
+		const canonicalValue = testValue(latestTest, verdict.parameter);
+		if (canonicalValue === null) continue;
+		const unitText = displayUnitText(parameter, displayUnits);
+		const title = verdict.parameter === 'fc' ? levelShortLabel : parameter.shortLabel;
+
+		if (verdict.status === 'ok') {
+			inRange.push({
+				key: verdict.parameter,
+				icon: parameter.icon,
+				title,
+				rangeText:
+					`${formatDisplayValue(parameter, canonicalValue, displayUnits)}` +
+					`${unitText ? ` ${unitText}` : ''} · in range`
+			});
+			if (verdict.note && !actionKeys.has(verdict.parameter)) {
+				notices.push(`${title}: ${verdict.note}`);
+			}
+		} else if (verdict.note && !actionKeys.has(verdict.parameter)) {
+			// out-of-band (or won't-hold) with no action of its own — surface the reasoning
+			notices.push(`${title}: ${verdict.note}`);
+		}
 	}
 
-	return { actions, inRange };
+	return {
+		actions,
+		deferred,
+		inRange,
+		notices,
+		requestInput: guidance.requestInput.map((request) => request.reason)
+	};
 }

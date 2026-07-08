@@ -41,6 +41,18 @@ export const DOSING_BASIS = {
 		source: 'product labelling standard (sodium dichloro-s-triazinetrione dihydrate)',
 		referencePoints: ['+4 ppm in 37,854 L → ≈ 270 g; raises CYA ≈ 0.9 ppm per 1 ppm FC']
 	},
+	bcdmhAvailableBromine: {
+		value: 0.66,
+		meaning: 'available bromine (as Br₂) fraction of BCDMH granules/tablets',
+		basis: 'stoichiometric',
+		source:
+			'1-bromo-3-chloro-5,5-dimethylhydantoin MW 241.47 yields one Br₂ equivalent (HOBr + HOCl regenerating HOBr from the bromide bank) → 159.8/241.5 ≈ 0.66; labels state 61–68%',
+		referencePoints: [
+			'envirotech BCDMH data sheet: ≥61% available bromine',
+			'commodity BCDMH tablets: ≥68% available bromine',
+			'+2 ppm Br in 30,000 L → 2×30/0.66 ≈ 91 g'
+		]
+	},
 	liquidChlorineMlPerPpmPerM3: {
 		value: 8,
 		meaning: 'mL of 12.5% w/v liquid chlorine per 1 ppm FC per m³ (125 g/L available Cl)',
@@ -123,6 +135,11 @@ export interface DosingProduct {
 	disabledReason?: string;
 	/** side effect worth surfacing next to the dose */
 	sideEffectNote?: string;
+	/**
+	 * sanitiser systems this product belongs to ('chlorine' | 'swg' | 'bromine');
+	 * undefined = any. Keeps chlorine shock out of bromine pools and vice versa.
+	 */
+	sanitisers?: readonly string[];
 }
 
 export const DOSING_PRODUCTS = {
@@ -131,14 +148,17 @@ export const DOSING_PRODUCTS = {
 		parameter: 'fc',
 		direction: 'raise',
 		unit: 'g',
-		basisLabel: '÷ 65% available chlorine'
+		basisLabel: '÷ 65% available chlorine',
+		sideEffectNote: 'also raises CH ≈ 0.7 ppm per 1 ppm FC',
+		sanitisers: ['chlorine', 'swg']
 	},
 	liquidChlorine: {
 		name: 'Liquid chlorine 12.5%',
 		parameter: 'fc',
 		direction: 'raise',
 		unit: 'mL',
-		basisLabel: '125 g chlorine per litre'
+		basisLabel: '125 g chlorine per litre',
+		sanitisers: ['chlorine', 'swg']
 	},
 	dichlor: {
 		name: 'Dichlor 56%',
@@ -146,7 +166,8 @@ export const DOSING_PRODUCTS = {
 		direction: 'raise',
 		unit: 'g',
 		basisLabel: '÷ 56% available chlorine',
-		sideEffectNote: 'also raises CYA ≈ 0.9 ppm per 1 ppm FC'
+		sideEffectNote: 'also raises CYA ≈ 0.9 ppm per 1 ppm FC',
+		sanitisers: ['chlorine', 'swg']
 	},
 	trichlorTabs: {
 		name: 'Trichlor tabs',
@@ -154,7 +175,17 @@ export const DOSING_PRODUCTS = {
 		direction: 'raise',
 		unit: 'g',
 		basisLabel: '',
-		disabledReason: 'not for shock'
+		disabledReason: 'not for shock',
+		sanitisers: ['chlorine', 'swg']
+	},
+	bcdmh: {
+		name: 'Bromine granules (BCDMH)',
+		parameter: 'fc',
+		direction: 'raise',
+		unit: 'g',
+		basisLabel: '÷ 66% available bromine',
+		sideEffectNote: 'tablets release slowly — granules or a boosted brominator act faster',
+		sanitisers: ['bromine']
 	},
 	bakingSoda: {
 		name: 'Baking soda',
@@ -203,13 +234,21 @@ export const DOSING_PRODUCTS = {
 	}
 } as const satisfies Record<string, DosingProduct>;
 
-/** product options offered per parameter/direction (first non-disabled = default) */
+/**
+ * Product options per parameter/direction (first non-disabled = default),
+ * filtered to the pool's sanitiser system when the product is system-specific.
+ */
 export function productsFor(
 	parameter: ParameterKey,
-	direction: 'raise' | 'lower'
+	direction: 'raise' | 'lower',
+	sanitizer: string = 'chlorine'
 ): DosingProduct[] {
-	return Object.values(DOSING_PRODUCTS).filter(
-		(product) => product.parameter === parameter && product.direction === direction
+	const allProducts: DosingProduct[] = Object.values(DOSING_PRODUCTS);
+	return allProducts.filter(
+		(product) =>
+			product.parameter === parameter &&
+			product.direction === direction &&
+			(product.sanitisers === undefined || product.sanitisers.includes(sanitizer))
 	);
 }
 
@@ -276,7 +315,7 @@ export function computeDose(request: DoseRequest, product: DosingProduct): DoseR
 	}
 
 	if (request.parameter === 'fc') {
-		const availableChlorineGrams = delta * cubicMetres; // 1 ppm = 1 g/m³
+		const availableHalogenGrams = delta * cubicMetres; // 1 ppm = 1 g/m³ (FC as Cl₂, or Br as Br₂)
 		if (product.name === DOSING_PRODUCTS.liquidChlorine.name) {
 			return {
 				product,
@@ -287,8 +326,10 @@ export function computeDose(request: DoseRequest, product: DosingProduct): DoseR
 		const strength =
 			product.name === DOSING_PRODUCTS.dichlor.name
 				? DOSING_BASIS.dichlorStrength.value
-				: DOSING_BASIS.calHypoStrength.value;
-		return { product, amount: availableChlorineGrams / strength, unit: 'g' };
+				: product.name === DOSING_PRODUCTS.bcdmh.name
+					? DOSING_BASIS.bcdmhAvailableBromine.value
+					: DOSING_BASIS.calHypoStrength.value;
+		return { product, amount: availableHalogenGrams / strength, unit: 'g' };
 	}
 
 	const gramsPerPpmPerM3 =

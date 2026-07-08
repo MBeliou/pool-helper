@@ -12,6 +12,10 @@ export const profileTable = sqliteTable('profile', {
 	volume: real('volume'),
 	surface: text('surface').notNull(),
 	sanitiser: text('sanitiser').notNull(),
+	// indoor pools see no UV (stabiliser logic changes); sun exposure refines
+	// the CYA target for outdoor pools
+	location: text('location').notNull().default('Outdoor'),
+	sunExposure: text('sun_exposure').notNull().default('Full sun'),
 	filter: text('filter').notNull(),
 	unitsPreset: text('units_preset').notNull(),
 	volumeUnit: text('volume_unit', { enum: VOLUME_UNITS }).notNull(),

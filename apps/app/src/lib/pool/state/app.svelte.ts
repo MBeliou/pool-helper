@@ -35,6 +35,8 @@ class AppState {
 	volume = $state<number | null>(50000);
 	surface = $state('Plaster');
 	sanitiser = $state('Chlorine');
+	location = $state('Outdoor');
+	sunExposure = $state('Full sun');
 	filter = $state('Sand');
 	unitsPreset = $state('Metric (most of world)');
 	volumeUnit = $state<VolumeUnit>('litres');
@@ -104,6 +106,8 @@ class AppState {
 		this.volume = profile.volume;
 		this.surface = profile.surface;
 		this.sanitiser = profile.sanitiser;
+		this.location = profile.location;
+		this.sunExposure = profile.sunExposure;
 		this.filter = profile.filter;
 		this.unitsPreset = profile.unitsPreset;
 		this.volumeUnit = profile.volumeUnit as VolumeUnit;
@@ -122,6 +126,8 @@ class AppState {
 			volume: this.volume,
 			surface: this.surface,
 			sanitiser: this.sanitiser,
+			location: this.location,
+			sunExposure: this.sunExposure,
 			filter: this.filter,
 			unitsPreset: this.unitsPreset,
 			volumeUnit: this.volumeUnit,

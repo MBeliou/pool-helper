@@ -195,9 +195,11 @@ export interface GaugeReading {
 
 export function gaugeReadings(
 	latestTest: TestRow | undefined,
-	displayUnits: DisplayUnits
+	displayUnits: DisplayUnits,
+	// profile-derived definitions (guidance/displayBands.ts) — static fallback
+	parameters: ParameterDefinition[] = PARAMETERS
 ): GaugeReading[] {
-	return PARAMETERS.map((parameter) => {
+	return parameters.map((parameter) => {
 		const canonicalValue = latestTest ? testValue(latestTest, parameter.key) : null;
 		const idealLowFraction =
 			parameter.idealLow !== undefined ? scaleFraction(parameter, parameter.idealLow) : 0;

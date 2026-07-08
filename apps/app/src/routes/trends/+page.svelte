@@ -4,6 +4,9 @@
 	import { app } from '$lib/pool/state/app.svelte';
 	import { billing } from '$lib/pool/billing/revenuecat.svelte';
 	import { buildTrends, type ParameterTrend } from '$lib/pool/trends';
+	import { testValue } from '$lib/pool/chemistry';
+	import { guidanceConfigFromProfile } from '$lib/pool/fixPlan';
+	import { derivedParameterDefinitions } from '$lib/pool/guidance/displayBands';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import HChart from '$lib/pool/components/HChart.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -24,10 +27,24 @@
 
 	async function loadTrends() {
 		const tests = await getTestsSince(windowDays);
-		trends = buildTrends(tests, {
-			hardnessUnit: app.hardnessUnit,
-			temperatureUnit: app.temperatureUnit
-		});
+		const latestTest = tests.at(-1);
+		// ideal bands follow the profile-derived targets, like the home gauges
+		trends = buildTrends(
+			tests,
+			{ hardnessUnit: app.hardnessUnit, temperatureUnit: app.temperatureUnit },
+			derivedParameterDefinitions(
+				guidanceConfigFromProfile({
+					volume: app.volume,
+					volumeUnit: app.volumeUnit,
+					hardnessUnit: app.hardnessUnit,
+					surface: app.surface,
+					sanitiser: app.sanitiser,
+					location: app.location,
+					sunExposure: app.sunExposure
+				}),
+				latestTest ? testValue(latestTest, 'cya') : null
+			)
+		);
 	}
 
 	onMount(async () => {

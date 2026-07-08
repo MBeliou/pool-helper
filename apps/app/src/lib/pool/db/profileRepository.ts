@@ -13,6 +13,8 @@ export interface ProfileValues {
 	volume: number | null;
 	surface: string;
 	sanitiser: string;
+	location: string;
+	sunExposure: string;
 	filter: string;
 	unitsPreset: string;
 	volumeUnit: VolumeUnit;
@@ -38,6 +40,8 @@ export async function loadProfile(): Promise<ProfileValues | undefined> {
 		volume: profileRow.volume,
 		surface: profileRow.surface,
 		sanitiser: profileRow.sanitiser,
+		location: profileRow.location,
+		sunExposure: profileRow.sunExposure,
 		filter: profileRow.filter,
 		unitsPreset: profileRow.unitsPreset,
 		volumeUnit: profileRow.volumeUnit,
@@ -58,6 +62,8 @@ export async function saveProfile(profileValues: ProfileValues): Promise<void> {
 		volume: profileValues.volume,
 		surface: profileValues.surface,
 		sanitiser: profileValues.sanitiser,
+		location: profileValues.location,
+		sunExposure: profileValues.sunExposure,
 		filter: profileValues.filter,
 		unitsPreset: profileValues.unitsPreset,
 		volumeUnit: profileValues.volumeUnit,

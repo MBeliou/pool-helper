@@ -1,0 +1,633 @@
+// ──────────────────────────────────────────────────────────────────────
+// Guidance engine (spec §5–§6): pure function (readings, config) → guidance.
+//
+// 1. Derive per-parameter targets from the pool config (targets.ts).
+// 2. Build candidate adjustments in spec priority order:
+//      0 safety-FC · 1 CYA · 2 pH · 3 TA · 4 CH/saturation · 5 FC fine-tune
+// 3. Sequence with retest-gating: an adjustment is DEFERRED when an
+//    already-emitted action moves the parameter it targets or one of the
+//    readings its own reasoning depends on. Never two actions that fight.
+//
+// No dosing here — actions carry current/target deltas; fixPlan.ts maps
+// them onto the calibrated dose computation in dosing.ts.
+// ──────────────────────────────────────────────────────────────────────
+import {
+	PH_BAND,
+	PH_MAX_STEP_PER_DOSE,
+	chBand,
+	cyaBand,
+	sanitizerLevelLabel,
+	sanitizerTargets,
+	surfaceNeedsCalcium,
+	taBand,
+	type GuidanceConfig
+} from './targets';
+import { assessSaturation, defaultTdsPpm, type SaturationAssessment } from './saturationIndex';
+
+/** canonical readings (ppm / pH / °C); null = not measured in this test */
+export interface GuidanceReadings {
+	/** free chlorine — or TOTAL BROMINE for bromine pools (same column, same math) */
+	fc: number | null;
+	ph: number | null;
+	ta: number | null;
+	ch: number | null;
+	cya: number | null;
+	temp: number | null;
+}
+
+export type GuidanceParameter = 'fc' | 'ph' | 'ta' | 'ch' | 'cya';
+
+export type ActionKind =
+	| 'dose' // add a measured product — fixPlan attaches the dose
+	| 'dilute' // raisable-only parameter too high — partial drain & refill
+	| 'aerate' // pH up without chemicals / TA-down acid+aeration cycles
+	| 'swg-output'; // adjust the salt cell's output percentage
+
+export interface GuidanceAction {
+	parameter: GuidanceParameter;
+	kind: ActionKind;
+	status: 'low' | 'high';
+	/** raise/lower the parameter (dilution is always 'lower') */
+	direction: 'raise' | 'lower';
+	currentValue: number;
+	/** where THIS dose aims (per-pass clamped — may sit short of the final target) */
+	targetValue: number;
+	title: string;
+	/** root-cause reasoning shown to the user ("high TA keeps dragging pH up…") */
+	why: string | null;
+	sideEffects: string[];
+	/** delay guidance before the next chemical goes in */
+	waitNote: string | null;
+	priority: number;
+}
+
+export interface DeferredAdjustment {
+	parameter: GuidanceParameter;
+	title: string;
+	/** why it must wait ("the acid dose is already lowering it — retest first") */
+	reason: string;
+}
+
+export type VerdictStatus = 'ok' | 'low' | 'high' | 'wont-hold' | 'not-tested';
+
+export interface ParameterVerdict {
+	parameter: GuidanceParameter | 'temp';
+	status: VerdictStatus;
+	note: string | null;
+}
+
+export interface GuidanceResult {
+	/** actions safe to do now, in priority order — the fix plan */
+	actions: GuidanceAction[];
+	/** adjustments held back until after a retest, with the reason */
+	deferred: DeferredAdjustment[];
+	verdicts: ParameterVerdict[];
+	/** readings the engine needs and doesn't have (e.g. temp for the saturation check) */
+	requestInput: { parameter: GuidanceParameter | 'temp'; reason: string }[];
+	saturation: SaturationAssessment | null;
+	/** the parameter actually driving the situation (test 2: TA, not pH) */
+	rootCause: GuidanceParameter | null;
+}
+
+// internal: a candidate adjustment before sequencing
+interface CandidateAdjustment extends Omit<GuidanceAction, 'priority'> {
+	priority: number;
+	/** parameters this action moves (perturbation edges, spec §5) */
+	moves: GuidanceParameter[];
+	/** readings this action's reasoning depends on — pending changes invalidate it */
+	dependsOn: GuidanceParameter[];
+	/** overrides result.rootCause when this lands first (test 2: acid action, TA cause) */
+	rootCauseOverride?: GuidanceParameter;
+	deferReason?: never;
+}
+
+// below this the water is unsafe no matter what CYA turns out to be — the
+// safety rule (spec §6 rule 0) must fire even when the FC target is undefined
+const ABSOLUTE_MIN_FC = 1;
+const ABSOLUTE_MIN_FC_RAISE_TARGET = 3;
+
+const WAIT_AFTER_ACID = 'Run the pump ~1 h and retest pH before adding anything else.';
+const WAIT_AFTER_CYA =
+	'Stabiliser dissolves slowly (sock in the skimmer) — retest CYA in 2–3 days.';
+
+export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig): GuidanceResult {
+	const verdicts: ParameterVerdict[] = [];
+	const requestInput: GuidanceResult['requestInput'] = [];
+	const candidates: CandidateAdjustment[] = [];
+	let rootCause: GuidanceParameter | null = null;
+
+	const sanitizerName = sanitizerLevelLabel(config.sanitizer).label.toLowerCase();
+	const cyaTargetBand = cyaBand(config);
+	const levelTargets = sanitizerTargets(config, readings.cya);
+	const alkalinityBand = taBand(config);
+	const hardnessBand = chBand(config);
+
+	const chlorineWontHold =
+		config.sanitizer !== 'bromine' &&
+		config.location === 'outdoor' &&
+		readings.cya !== null &&
+		readings.cya < 10;
+
+	// ── CYA (priority 1) ────────────────────────────────────────────────
+	if (cyaTargetBand === null) {
+		// bromine pool: stabiliser does nothing for bromine — informational only
+		if (readings.cya !== null && readings.cya > 0) {
+			verdicts.push({
+				parameter: 'cya',
+				status: 'ok',
+				note: 'Stabiliser has no effect on bromine — nothing to do with it.'
+			});
+		}
+	} else if (readings.cya === null) {
+		verdicts.push({ parameter: 'cya', status: 'not-tested', note: null });
+		if (config.sanitizer !== 'bromine' && config.location === 'outdoor') {
+			requestInput.push({
+				parameter: 'cya',
+				reason: `Your ${sanitizerName} target depends on stabiliser — test CYA to get one.`
+			});
+		}
+	} else if (readings.cya < cyaTargetBand.low) {
+		verdicts.push({
+			parameter: 'cya',
+			status: 'low',
+			note: chlorineWontHold
+				? `With no stabiliser, sunlight destroys ${sanitizerName} within hours.`
+				: null
+		});
+		candidates.push({
+			parameter: 'cya',
+			kind: 'dose',
+			status: 'low',
+			direction: 'raise',
+			currentValue: readings.cya,
+			targetValue: cyaTargetBand.target,
+			title: 'Raise stabiliser',
+			why: chlorineWontHold
+				? `This is the root problem: without stabiliser, UV burns off ${sanitizerName} within hours — no chlorine level can hold until CYA is up.`
+				: `Stabiliser shields ${sanitizerName} from sunlight.`,
+			sideEffects: [`your ${sanitizerName} target rises with CYA — re-derive after`],
+			waitNote: WAIT_AFTER_CYA,
+			priority: 1,
+			moves: ['cya'],
+			dependsOn: []
+		});
+		if (chlorineWontHold) rootCause = 'cya';
+	} else if (readings.cya > cyaTargetBand.high) {
+		verdicts.push({ parameter: 'cya', status: 'high', note: null });
+		const drainFraction = 1 - cyaTargetBand.target / readings.cya;
+		candidates.push({
+			parameter: 'cya',
+			kind: 'dilute',
+			status: 'high',
+			direction: 'lower',
+			currentValue: readings.cya,
+			targetValue: cyaTargetBand.target,
+			title: 'Lower stabiliser by diluting',
+			why: `Stabiliser only leaves with the water: drain and refill about ${Math.round(
+				drainFraction * 100
+			)}% to get back to ~${cyaTargetBand.target} ppm. Too much CYA locks up your ${sanitizerName}.`,
+			sideEffects: ['dilution also lowers TA, CH and salt — retest everything after'],
+			waitNote: null,
+			priority: 1,
+			moves: ['cya', 'ta', 'ch', 'fc'],
+			dependsOn: []
+		});
+	} else {
+		verdicts.push({ parameter: 'cya', status: 'ok', note: null });
+	}
+
+	// ── sanitizer level: safety floor (priority 0) + fine-tune (priority 5) ──
+	if (readings.fc === null) {
+		// sanitation is the one reading the engine can't work around (spec §2 requiredFor)
+		verdicts.push({ parameter: 'fc', status: 'not-tested', note: null });
+		requestInput.push({
+			parameter: 'fc',
+			reason:
+				config.sanitizer === 'bromine'
+					? 'Total bromine is the sanitation reading — test it to know the water is safe.'
+					: 'Free chlorine (not total chlorine — strips often show both) is the sanitation reading the plan is built around.'
+		});
+	} else if (levelTargets === null) {
+		// outdoor chlorine pool with CYA ≈ 0 (or unknown): NEVER say "FC ok" (spec §3)
+		if (readings.fc < ABSOLUTE_MIN_FC) {
+			// …but the safety rule still fires: this little chlorine is unsafe
+			// no matter what CYA turns out to be
+			verdicts.push({
+				parameter: 'fc',
+				status: 'low',
+				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+			});
+			candidates.push({
+				parameter: 'fc',
+				kind: 'dose',
+				status: 'low',
+				direction: 'raise',
+				currentValue: readings.fc,
+				targetValue: ABSOLUTE_MIN_FC_RAISE_TARGET,
+				title: 'Raise chlorine now',
+				why:
+					readings.cya === null
+						? 'Safety first: under-sanitised water gets worse by the hour. Test CYA too — without stabiliser, sunlight burns chlorine off within hours.'
+						: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.',
+				sideEffects: [],
+				waitNote: null,
+				priority: 0,
+				moves: ['fc'],
+				dependsOn: []
+			});
+		} else {
+			verdicts.push({
+				parameter: 'fc',
+				status: 'wont-hold',
+				note:
+					readings.cya === null
+						? `Can't judge ${sanitizerName} without a CYA reading — its target is derived from stabiliser.`
+						: `${readings.fc} ppm looks fine but WON'T HOLD — with stabiliser at 0, UV destroys it within hours. Fix CYA first.`
+			});
+		}
+	} else {
+		const raiseCeiling = Math.max(levelTargets.shock, levelTargets.target);
+		if (readings.fc < levelTargets.min) {
+			verdicts.push({
+				parameter: 'fc',
+				status: 'low',
+				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+			});
+			candidates.push({
+				parameter: 'fc',
+				kind: 'dose',
+				status: 'low',
+				direction: 'raise',
+				currentValue: readings.fc,
+				targetValue: Math.min(levelTargets.target, raiseCeiling),
+				title: config.sanitizer === 'bromine' ? 'Raise bromine now' : 'Raise chlorine now',
+				why: 'Safety first: under-sanitised water is the one problem that gets worse by the hour.',
+				sideEffects:
+					config.sanitizer === 'swg'
+						? ['dose manually — the cell alone is too slow to catch up']
+						: [],
+				waitNote: null,
+				priority: 0,
+				moves: ['fc'],
+				dependsOn: []
+			});
+		} else if (readings.fc > levelTargets.high) {
+			verdicts.push({
+				parameter: 'fc',
+				status: 'high',
+				note:
+					readings.fc > levelTargets.shock
+						? `Very high — hold off swimming until it drifts below ~${levelTargets.high} ppm.`
+						: 'A bit high — let it drift down on its own; add nothing.'
+			});
+		} else {
+			verdicts.push({ parameter: 'fc', status: 'ok', note: null });
+			if (readings.fc < levelTargets.target) {
+				candidates.push({
+					parameter: 'fc',
+					kind: config.sanitizer === 'swg' ? 'swg-output' : 'dose',
+					status: 'low',
+					direction: 'raise',
+					currentValue: readings.fc,
+					targetValue: levelTargets.target,
+					title:
+						config.sanitizer === 'swg'
+							? 'Nudge your salt cell output up'
+							: config.sanitizer === 'bromine'
+								? 'Top up bromine'
+								: 'Top up chlorine',
+					why:
+						config.sanitizer === 'swg'
+							? `Above the safe floor but below target (${levelTargets.target} ppm) — raise the cell output a notch instead of dosing.`
+							: `Above the safe floor but below the maintenance target of ${levelTargets.target} ppm.`,
+					sideEffects: [],
+					waitNote: null,
+					priority: 5,
+					moves: ['fc'],
+					dependsOn: ['cya']
+				});
+			}
+		}
+	}
+
+	// ── pH (priority 2) and TA (priority 3) — coupled by the carbonate buffer ──
+	const alkalinityHigh = readings.ta !== null && readings.ta > alkalinityBand.high;
+	const alkalinityLow = readings.ta !== null && readings.ta < alkalinityBand.low;
+
+	if (readings.ph === null) {
+		verdicts.push({ parameter: 'ph', status: 'not-tested', note: null });
+	} else if (readings.ph > PH_BAND.high) {
+		verdicts.push({ parameter: 'ph', status: 'high', note: null });
+		candidates.push({
+			parameter: 'ph',
+			kind: 'dose',
+			status: 'high',
+			direction: 'lower',
+			currentValue: readings.ph,
+			targetValue: Math.max(PH_BAND.target, readings.ph - PH_MAX_STEP_PER_DOSE),
+			title: 'Lower pH',
+			why: alkalinityHigh
+				? 'The real cause is high alkalinity — it keeps dragging pH up. Acid lowers both, which is exactly what you want here. Expect to repeat this over a few days; do NOT add anything to raise TA back.'
+				: 'High pH weakens your sanitiser and irritates skin and eyes.',
+			sideEffects: ['acid also lowers TA'],
+			waitNote: WAIT_AFTER_ACID,
+			priority: 2,
+			moves: ['ph', 'ta'],
+			dependsOn: [],
+			rootCauseOverride: alkalinityHigh ? 'ta' : undefined
+		});
+	} else if (readings.ph < PH_BAND.low) {
+		verdicts.push({ parameter: 'ph', status: 'low', note: null });
+		const useAerationOnly = alkalinityHigh; // soda ash would push high TA higher
+		candidates.push({
+			parameter: 'ph',
+			kind: useAerationOnly ? 'aerate' : 'dose',
+			status: 'low',
+			direction: 'raise',
+			currentValue: readings.ph,
+			targetValue: Math.min(PH_BAND.target, readings.ph + PH_MAX_STEP_PER_DOSE),
+			title: useAerationOnly ? 'Raise pH by aeration' : 'Raise pH',
+			why: useAerationOnly
+				? 'Your alkalinity is already high, so skip soda ash: point returns at the surface, run water features — aeration raises pH without adding TA.'
+				: 'Low pH is corrosive — it etches surfaces and attacks metal.',
+			sideEffects: useAerationOnly ? [] : ['soda ash also raises TA slightly'],
+			waitNote: useAerationOnly ? null : WAIT_AFTER_ACID,
+			priority: 2,
+			moves: useAerationOnly ? ['ph'] : ['ph', 'ta'],
+			dependsOn: []
+		});
+	} else {
+		verdicts.push({ parameter: 'ph', status: 'ok', note: null });
+	}
+
+	if (readings.ta === null) {
+		verdicts.push({ parameter: 'ta', status: 'not-tested', note: null });
+	} else if (alkalinityLow) {
+		verdicts.push({ parameter: 'ta', status: 'low', note: null });
+		candidates.push({
+			parameter: 'ta',
+			kind: 'dose',
+			status: 'low',
+			direction: 'raise',
+			currentValue: readings.ta,
+			targetValue: alkalinityBand.target,
+			title: 'Raise alkalinity',
+			why: 'Alkalinity is the pH buffer — too low and pH swings on every splash of rain or acid.',
+			sideEffects: ['baking soda nudges pH up slightly'],
+			waitNote: null,
+			priority: 3,
+			moves: ['ta', 'ph'],
+			dependsOn: ['ph']
+		});
+	} else if (alkalinityHigh) {
+		verdicts.push({
+			parameter: 'ta',
+			status: 'high',
+			note: 'High TA keeps pushing pH up.'
+		});
+		// generated even when pH is high: the sequencer then defers it behind the
+		// acid dose (which already lowers TA) — spec §6 retest-gating example
+		candidates.push({
+			parameter: 'ta',
+			kind: 'aerate',
+			status: 'high',
+			direction: 'lower',
+			currentValue: readings.ta,
+			targetValue: alkalinityBand.target,
+			title: 'Lower alkalinity (acid + aeration cycles)',
+			why: `Add acid to pull pH to ~${PH_BAND.low}, then aerate the water back up to ~${PH_BAND.target} — each cycle burns off some TA without a "TA remover" product. Repeat until TA is near ${alkalinityBand.target} ppm.`,
+			sideEffects: ['works in repeated small cycles — retest pH and TA between rounds'],
+			waitNote: WAIT_AFTER_ACID,
+			priority: 3,
+			moves: ['ta', 'ph'],
+			dependsOn: ['ph']
+		});
+	} else {
+		verdicts.push({ parameter: 'ta', status: 'ok', note: null });
+	}
+
+	// ── CH & saturation index (priority 4) ─────────────────────────────
+	let saturation: SaturationAssessment | null = null;
+	const canComputeSaturation = readings.ph !== null && readings.ta !== null && readings.ch !== null;
+
+	if (canComputeSaturation && readings.temp === null) {
+		requestInput.push({
+			parameter: 'temp',
+			reason: 'Water temperature is needed for the scaling/corrosion (saturation) check.'
+		});
+	}
+
+	if (readings.ch === null) {
+		verdicts.push({ parameter: 'ch', status: 'not-tested', note: null });
+	} else {
+		if (canComputeSaturation && readings.temp !== null) {
+			saturation = assessSaturation({
+				ph: readings.ph!,
+				taPpm: readings.ta!,
+				chPpm: readings.ch,
+				temperatureC: readings.temp,
+				cyaPpm: readings.cya ?? 0,
+				tdsPpm: defaultTdsPpm(config.sanitizer)
+			});
+		}
+
+		const hardnessLow = readings.ch < hardnessBand.low;
+		const hardnessHigh = readings.ch > hardnessBand.high;
+		const corrosive = saturation?.verdict === 'corrosive';
+		const scaling = saturation?.verdict === 'scaling';
+
+		if (corrosive || (hardnessLow && saturation === null && surfaceNeedsCalcium(config))) {
+			verdicts.push({
+				parameter: 'ch',
+				status: 'low',
+				note: corrosive
+					? `Water is corrosive (saturation index ${saturation!.value.toFixed(2)}) — it will ${
+							surfaceNeedsCalcium(config)
+								? 'etch the plaster and attack equipment'
+								: 'attack metal parts and heat exchangers'
+						}.`
+					: 'Low calcium on a plaster-type surface — the water will pull calcium out of the finish.'
+			});
+			candidates.push({
+				parameter: 'ch',
+				kind: 'dose',
+				status: 'low',
+				direction: 'raise',
+				currentValue: readings.ch,
+				targetValue: Math.max(hardnessBand.target, readings.ch),
+				title: 'Raise calcium hardness',
+				why: corrosive
+					? 'Hungry (calcium-starved) water dissolves what it touches. Raising CH is the safest lever to bring the saturation index back to balance.'
+					: 'Calcium protects plaster-type finishes from etching.',
+				sideEffects: ['recheck the saturation index after — a small pH/TA nudge may follow'],
+				waitNote: null,
+				priority: 4,
+				moves: ['ch'],
+				dependsOn: ['ph', 'ta'],
+				rootCauseOverride: 'ch'
+			});
+		} else if (scaling) {
+			verdicts.push({
+				parameter: 'ch',
+				status: hardnessHigh ? 'high' : 'ok',
+				note: `Water is scale-forming (saturation index ${saturation!.value.toFixed(2)}) — cloudiness and scale on equipment.`
+			});
+			if (hardnessHigh) {
+				candidates.push({
+					parameter: 'ch',
+					kind: 'dilute',
+					status: 'high',
+					direction: 'lower',
+					currentValue: readings.ch,
+					targetValue: hardnessBand.target,
+					title: 'Lower calcium by diluting',
+					why: 'Calcium only leaves with the water — partial drain and refill. Keeping pH at the low end of its band also holds scale at bay meanwhile.',
+					sideEffects: ['dilution also lowers CYA, TA and salt — retest after'],
+					waitNote: null,
+					priority: 4,
+					moves: ['ch', 'cya', 'ta', 'fc'],
+					dependsOn: ['ph', 'ta']
+				});
+			} else if (readings.ph !== null && readings.ph > PH_BAND.low + 0.1) {
+				candidates.push({
+					parameter: 'ph',
+					kind: 'dose',
+					status: 'high',
+					direction: 'lower',
+					currentValue: readings.ph,
+					targetValue: Math.max(PH_BAND.low + 0.2, readings.ph - PH_MAX_STEP_PER_DOSE),
+					title: 'Lower pH a touch (scale control)',
+					why: 'The water is scale-forming; pH is the quickest saturation lever when calcium itself is in range.',
+					sideEffects: ['acid also lowers TA'],
+					waitNote: WAIT_AFTER_ACID,
+					priority: 4,
+					moves: ['ph', 'ta'],
+					dependsOn: ['ph', 'ta'],
+					rootCauseOverride: 'ch'
+				});
+			}
+		} else if (hardnessHigh) {
+			verdicts.push({
+				parameter: 'ch',
+				status: saturation ? 'ok' : 'high',
+				note: saturation
+					? 'Above the usual band, but the saturation index is balanced — just watch it.'
+					: 'High calcium — add a water temperature reading to check scaling risk.'
+			});
+		} else if (hardnessLow && !surfaceNeedsCalcium(config)) {
+			verdicts.push({
+				parameter: 'ch',
+				status: saturation ? 'ok' : 'low',
+				note: saturation
+					? 'Below the usual band, but the saturation index is balanced and your surface tolerates it.'
+					: null
+			});
+		} else if (hardnessLow) {
+			// plaster-type surface, saturation balanced — still worth topping up slowly
+			verdicts.push({
+				parameter: 'ch',
+				status: 'low',
+				note: 'Saturation is balanced today, but low CH leaves no buffer for winter (cold water is more corrosive).'
+			});
+			candidates.push({
+				parameter: 'ch',
+				kind: 'dose',
+				status: 'low',
+				direction: 'raise',
+				currentValue: readings.ch,
+				targetValue: hardnessBand.target,
+				title: 'Raise calcium hardness',
+				why: 'Calcium protects plaster-type finishes from etching.',
+				sideEffects: ['recheck the saturation index after'],
+				waitNote: null,
+				priority: 4,
+				moves: ['ch'],
+				dependsOn: ['ph', 'ta']
+			});
+		} else {
+			verdicts.push({ parameter: 'ch', status: 'ok', note: null });
+		}
+	}
+
+	if (readings.temp !== null) {
+		verdicts.push({ parameter: 'temp', status: 'ok', note: null });
+	}
+
+	// ── sequencer: emit what's safe now, defer what a current fix perturbs ──
+	candidates.sort((first, second) => first.priority - second.priority);
+	const actions: GuidanceAction[] = [];
+	const deferred: DeferredAdjustment[] = [];
+	const movedParameters = new Set<GuidanceParameter>();
+	const moverTitleByParameter = new Map<GuidanceParameter, string>();
+
+	for (const candidate of candidates) {
+		const blockedBy =
+			(movedParameters.has(candidate.parameter) && candidate.parameter) ||
+			candidate.dependsOn.find((dependency) => movedParameters.has(dependency));
+
+		if (blockedBy) {
+			const moverTitle = moverTitleByParameter.get(blockedBy as GuidanceParameter);
+			deferred.push({
+				parameter: candidate.parameter,
+				title: candidate.title,
+				reason:
+					blockedBy === candidate.parameter
+						? `“${moverTitle}” already moves it — retest before adjusting further.`
+						: `Depends on ${parameterDisplayName(blockedBy as GuidanceParameter)}, which “${moverTitle}” is changing — retest first.`
+			});
+			continue;
+		}
+
+		actions.push({
+			parameter: candidate.parameter,
+			kind: candidate.kind,
+			status: candidate.status,
+			direction: candidate.direction,
+			currentValue: candidate.currentValue,
+			targetValue: candidate.targetValue,
+			title: candidate.title,
+			why: candidate.why,
+			sideEffects: candidate.sideEffects,
+			waitNote: candidate.waitNote,
+			priority: candidate.priority
+		});
+		for (const movedParameter of candidate.moves) {
+			movedParameters.add(movedParameter);
+			if (!moverTitleByParameter.has(movedParameter)) {
+				moverTitleByParameter.set(movedParameter, candidate.title);
+			}
+		}
+		if (rootCause === null) rootCause = candidate.rootCauseOverride ?? candidate.parameter;
+	}
+
+	// FC target undefined (CYA=0 outdoor): surface the deferral explicitly (spec test 1)
+	if (levelTargets === null && readings.fc !== null && config.sanitizer !== 'bromine') {
+		deferred.push({
+			parameter: 'fc',
+			title: `${sanitizerLevelLabel(config.sanitizer).label} target`,
+			reason:
+				readings.cya === null
+					? 'Undefined until stabiliser is measured — the target is derived from CYA.'
+					: 'Undefined until stabiliser is set — retest and re-derive once CYA is up.'
+		});
+	}
+
+	return { actions, deferred, verdicts, requestInput, saturation, rootCause };
+}
+
+export function parameterDisplayName(parameter: GuidanceParameter | 'temp'): string {
+	switch (parameter) {
+		case 'fc':
+			return 'sanitiser level';
+		case 'ph':
+			return 'pH';
+		case 'ta':
+			return 'alkalinity';
+		case 'ch':
+			return 'calcium hardness';
+		case 'cya':
+			return 'stabiliser';
+		case 'temp':
+			return 'water temperature';
+	}
+}

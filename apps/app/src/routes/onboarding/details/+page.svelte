@@ -8,12 +8,15 @@
 
 	const palette = $derived(theme.palette);
 
-	const detailGroups: {
+	interface DetailGroup {
 		heading: string;
 		options: string[];
 		get: () => string;
 		set: (selected: string) => void;
-	}[] = [
+	}
+
+	// sun exposure only matters where there's sun — the group appears for outdoor pools
+	const detailGroups: DetailGroup[] = $derived([
 		{
 			heading: 'Surface',
 			options: ['Plaster', 'Vinyl', 'Fibreglass', 'Tile'],
@@ -27,12 +30,28 @@
 			set: (selected) => (app.sanitiser = selected)
 		},
 		{
+			heading: 'Location',
+			options: ['Outdoor', 'Indoor'],
+			get: () => app.location,
+			set: (selected) => (app.location = selected)
+		},
+		...(app.location === 'Outdoor'
+			? [
+					{
+						heading: 'Sun exposure',
+						options: ['Full sun', 'Partial sun', 'Mostly shaded'],
+						get: () => app.sunExposure,
+						set: (selected: string) => (app.sunExposure = selected)
+					}
+				]
+			: []),
+		{
 			heading: 'Filter media',
 			options: ['Sand', 'Glass', 'Cartridge', 'D.E.', 'Cotton balls'],
 			get: () => app.filter,
 			set: (selected) => (app.filter = selected)
 		}
-	];
+	]);
 
 	function pickOption(group: (typeof detailGroups)[number], option: string) {
 		group.set(option);

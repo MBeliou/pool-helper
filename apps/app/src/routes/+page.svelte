@@ -3,8 +3,9 @@
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
 	import { billing } from '$lib/pool/billing/revenuecat.svelte';
-	import { gaugeReadings, type GaugeReading } from '$lib/pool/chemistry';
-	import { computeFixPlan, type FixAction } from '$lib/pool/fixPlan';
+	import { gaugeReadings, testValue, type GaugeReading } from '$lib/pool/chemistry';
+	import { computeFixPlan, guidanceConfigFromProfile, type FixAction } from '$lib/pool/fixPlan';
+	import { derivedParameterDefinitions } from '$lib/pool/guidance/displayBands';
 	import { formatShortDate, formatTimeCompact, isToday } from '$lib/pool/format';
 	import { getLatestTest } from '$lib/pool/db/testsRepository';
 	import Icon from '$lib/pool/components/Icon.svelte';
@@ -26,15 +27,25 @@
 		await app.load();
 		const latestTest = await getLatestTest();
 		hasTest = Boolean(latestTest);
-		readings = gaugeReadings(latestTest, {
-			hardnessUnit: app.hardnessUnit,
-			temperatureUnit: app.temperatureUnit
-		});
-		fixActions = computeFixPlan(latestTest, {
+		const poolProfile = {
 			volume: app.volume,
 			volumeUnit: app.volumeUnit,
-			hardnessUnit: app.hardnessUnit
-		}).actions;
+			hardnessUnit: app.hardnessUnit,
+			surface: app.surface,
+			sanitiser: app.sanitiser,
+			location: app.location,
+			sunExposure: app.sunExposure
+		};
+		// gauge bands follow the profile-derived targets (FC from CYA, etc.)
+		readings = gaugeReadings(
+			latestTest,
+			{ hardnessUnit: app.hardnessUnit, temperatureUnit: app.temperatureUnit },
+			derivedParameterDefinitions(
+				guidanceConfigFromProfile(poolProfile),
+				latestTest ? testValue(latestTest, 'cya') : null
+			)
+		);
+		fixActions = computeFixPlan(latestTest, poolProfile).actions;
 		if (!latestTest) {
 			testedSubtitle = 'No tests yet';
 		} else if (isToday(latestTest.testedAt)) {

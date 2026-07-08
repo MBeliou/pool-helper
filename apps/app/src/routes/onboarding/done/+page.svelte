@@ -11,6 +11,7 @@
 		['Shape', app.shape],
 		['Volume', `${app.volume} ${volumeUnitShort[app.volumeUnit] ?? app.volumeUnit}`],
 		['Sanitiser', app.sanitiser],
+		['Location', app.location === 'Outdoor' ? `Outdoor · ${app.sunExposure}` : 'Indoor'],
 		['Filter', app.filter]
 	]);
 
