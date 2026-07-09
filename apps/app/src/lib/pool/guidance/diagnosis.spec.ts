@@ -21,6 +21,7 @@ const OUTDOOR_CHLORINE_PLASTER: GuidanceConfig = {
 function guidanceFor(partial: Partial<GuidanceReadings>) {
 	const readings: GuidanceReadings = {
 		fc: null,
+		tc: null,
 		ph: null,
 		ta: null,
 		ch: null,
@@ -85,6 +86,21 @@ describe('rankCauses — engine evidence', () => {
 		const sanitiser = ranked.findIndex((cause) => cause.id === 'low-sanitiser');
 		expect(filtration).toBeGreaterThanOrEqual(0);
 		expect(sanitiser === -1 || filtration < sanitiser).toBe(true);
+	});
+
+	it('measured combined chlorine confirms or clears chloramines', () => {
+		const highCombined = guidanceFor({ fc: 2.0, tc: 3.6, ph: 7.4, ta: 80, cya: 40 });
+		const cleanCombined = guidanceFor({ fc: 4.0, tc: 4.1, ph: 7.4, ta: 80, cya: 40 });
+		// neutral answers ("No" to both) so the measurement is the only signal
+		const answers: AnsweredQuestion[] = questionsForSymptoms(['eye']).map((question) => ({
+			question,
+			selectedIndex: 1
+		}));
+		const confirmed = rankCauses(['eye'], answers, highCombined);
+		const cleared = rankCauses(['eye'], answers, cleanCombined);
+		expect(confirmed[0].id).toBe('chloramines');
+		const clearedRank = cleared.findIndex((cause) => cause.id === 'chloramines');
+		expect(clearedRank === -1 || clearedRank > 0).toBe(true);
 	});
 
 	it('works without any test (symptoms + answers only)', () => {

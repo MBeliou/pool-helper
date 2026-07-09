@@ -11,6 +11,7 @@
 	import HChart from '$lib/pool/components/HChart.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
+	import RangeSelector, { TREND_RANGES } from '$lib/pool/components/RangeSelector.svelte';
 	import { getTestsSince } from '$lib/pool/db/testsRepository';
 	import { testValue } from '$lib/pool/chemistry';
 	import { guidanceConfigFromProfile } from '$lib/pool/fixPlan';
@@ -21,22 +22,13 @@
 	const parameterKey = $derived((page.params.param ?? 'ph') as ParameterKey);
 	const parameter = $derived(parameterByKey[parameterKey] ?? parameterByKey.ph);
 
-	// Longer windows are a Pool Doctor Pro feature; free users get the 14-day view.
-	// Enforcement is native-only — the web preview leaves every range unlocked, and
-	// dev builds too (the paywall can't present on a bare simulator).
-	const ranges: { label: string; days: number; free?: boolean }[] = [
-		{ label: '14d', days: 14, free: true },
-		{ label: '30d', days: 30 },
-		{ label: '90d', days: 90 },
-		{ label: '1y', days: 365 }
-	];
 	const proUnlocked = $derived(billing.isPro || !billing.supported || import.meta.env.DEV);
 	let selectedRange = $state('14d');
 	let trend = $state<ParameterTrend | undefined>(undefined);
 	let loaded = $state(false);
 
 	async function refreshTrend() {
-		const days = ranges.find((range) => range.label === selectedRange)?.days ?? 14;
+		const days = TREND_RANGES.find((range) => range.label === selectedRange)?.days ?? 14;
 		const tests = await getTestsSince(days);
 		const latestTest = tests.at(-1);
 		// ideal bands follow the profile-derived targets, same as home/trends list
@@ -67,12 +59,7 @@
 		await refreshTrend();
 	});
 
-	async function pickRange(rangeLabel: string) {
-		const range = ranges.find((option) => option.label === rangeLabel);
-		if (range && !range.free && !proUnlocked) {
-			await billing.presentPaywall();
-			if (!billing.isPro) return; // declined — stay on the free window
-		}
+	function pickRange(rangeLabel: string) {
 		selectedRange = rangeLabel;
 		refreshTrend();
 	}
@@ -107,29 +94,8 @@
 		{/snippet}
 	</NavHeader>
 	<div class="scroll" style="padding:14px 16px 0;">
-		<!-- range segmented -->
-		<div
-			style="display:flex;gap:6px;background:{palette.card};border-radius:12px;padding:4px;box-shadow:{palette.shadow};margin-bottom:14px;"
-		>
-			{#each ranges as range (range.label)}
-				{@const selected = range.label === selectedRange}
-				{@const locked = !range.free && !proUnlocked}
-				<button
-					onclick={() => pickRange(range.label)}
-					style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;padding:8px;border-radius:9px;border:none;font-family:var(--font-sans);font-size:13px;font-weight:{selected
-						? 700
-						: 600};background:{selected ? palette.accent : 'transparent'};color:{selected
-						? '#fff'
-						: palette.inkMuted};"
-					>{range.label}{#if locked}<Icon
-							name="spark"
-							size={11}
-							color={selected ? '#fff' : palette.inkMuted}
-							strokeWidth={2.2}
-						/>{/if}</button
-				>
-			{/each}
-		</div>
+		<!-- range segmented (shared with the trends list) -->
+		<RangeSelector selected={selectedRange} onpick={(label) => pickRange(label)} />
 		{#if trend && trend.points.length >= 2}
 			{@const trendColor = statusColor(palette, trend.status)}
 			<!-- chart -->

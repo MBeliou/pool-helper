@@ -6,8 +6,11 @@
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
+	import ComingSoonSheet from '$lib/pool/components/ComingSoonSheet.svelte';
 
 	const palette = $derived(theme.palette);
+
+	let comingSoonOpen = $state(false);
 
 	function pickTester(testerName: string) {
 		app.tester = testerName;
@@ -47,9 +50,9 @@
 					</div>
 				</button>
 			{/each}
-			<!-- add a tester -->
+			<!-- add a tester (custom kits are roadmap — same sheet as More → Testers) -->
 			<button
-				onclick={() => goto('/log/entry')}
+				onclick={() => (comingSoonOpen = true)}
 				style="background:transparent;border-radius:18px;border:2px dashed {palette.inkMuted}66;padding:14px 13px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;color:{palette.inkMuted};min-height:116px;"
 			>
 				<div
@@ -62,4 +65,8 @@
 		</div>
 	</div>
 	<TabBar />
+	<ComingSoonSheet
+		bind:open={comingSoonOpen}
+		message="Custom testers (your own kit, with its read panels) are on the roadmap. For now, pick the closest match."
+	/>
 </div>

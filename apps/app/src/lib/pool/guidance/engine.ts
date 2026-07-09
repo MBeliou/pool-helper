@@ -28,6 +28,8 @@ import { assessSaturation, defaultTdsPpm, type SaturationAssessment } from './sa
 export interface GuidanceReadings {
 	/** free chlorine — or TOTAL BROMINE for bromine pools (same column, same math) */
 	fc: number | null;
+	/** total chlorine (chlorine pools; strips show both) — combined = tc − fc */
+	tc: number | null;
 	ph: number | null;
 	ta: number | null;
 	ch: number | null;
@@ -85,6 +87,11 @@ export interface GuidanceResult {
 	/** readings the engine needs and doesn't have (e.g. temp for the saturation check) */
 	requestInput: { parameter: GuidanceParameter | 'temp'; reason: string }[];
 	saturation: SaturationAssessment | null;
+	/**
+	 * combined (used-up) chlorine = total − free, when both were measured on a
+	 * chlorine pool; null otherwise. The eye-sting/"chlorine smell" culprit.
+	 */
+	combinedChlorine: number | null;
 	/** the parameter actually driving the situation (test 2: TA, not pH) */
 	rootCause: GuidanceParameter | null;
 }
@@ -105,6 +112,14 @@ interface CandidateAdjustment extends Omit<GuidanceAction, 'priority'> {
 // safety rule (spec §6 rule 0) must fire even when the FC target is undefined
 const ABSOLUTE_MIN_FC = 1;
 const ABSOLUTE_MIN_FC_RAISE_TARGET = 3;
+
+// Combined (used-up) chlorine thresholds. TFP treats CC ≥ 0.5 ppm as worth
+// attention; acting that early felt overeager in practice (user decision), so:
+// note that it's building at ≥ 0.5, prescribe the shock at ≥ 1.0.
+const COMBINED_CHLORINE_NOTE_PPM = 0.5;
+const COMBINED_CHLORINE_SHOCK_PPM = 1.0;
+// shock target when the FC/CYA targets are undefined (CYA ≈ 0 outdoors)
+const FALLBACK_SHOCK_TARGET_PPM = 10;
 
 const AFTER_ACID_STEPS = [
 	'Run the pump for about an hour',
@@ -128,6 +143,22 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 		config.location === 'outdoor' &&
 		readings.cya !== null &&
 		readings.cya < 10;
+
+	// combined (used-up) chlorine — chlorine pools only; bromine has no free/combined split
+	const combinedChlorine =
+		config.sanitizer !== 'bromine' && readings.fc !== null && readings.tc !== null
+			? Math.round(Math.max(0, readings.tc - readings.fc) * 10) / 10
+			: null;
+	const needsChloramineShock =
+		combinedChlorine !== null && combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM;
+	const combinedChlorineNote =
+		combinedChlorine === null
+			? null
+			: combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM
+				? `About ${combinedChlorine} ppm of the chlorine is used up — only a shock clears it.`
+				: combinedChlorine >= COMBINED_CHLORINE_NOTE_PPM
+					? `Used-up chlorine is building (~${combinedChlorine} ppm combined) — a shock will be due soon.`
+					: null;
 
 	// ── CYA (priority 1) ────────────────────────────────────────────────
 	if (cyaTargetBand === null) {
@@ -202,6 +233,29 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 	}
 
 	// ── sanitizer level: safety floor (priority 0) + fine-tune (priority 5) ──
+	// A chloramine shock covers any FC raise, so it REPLACES the plain safety
+	// candidate (same parameter — one action, not two fighting ones).
+	if (needsChloramineShock && readings.fc !== null) {
+		candidates.push({
+			parameter: 'fc',
+			kind: 'dose',
+			status: 'low',
+			direction: 'raise',
+			currentValue: readings.fc,
+			targetValue: Math.max(levelTargets?.shock ?? FALLBACK_SHOCK_TARGET_PPM, readings.fc + 1),
+			title: 'Shock to clear used-up chlorine',
+			why: `About ${combinedChlorine} ppm of your chlorine is used up (combined chlorine) — that's what stings eyes and makes the strong "chlorine" smell. Ironically the fix is MORE chlorine: a shock burns the used-up part off.`,
+			sideEffects: [],
+			followUpSteps: [
+				'Shock at dusk (sunlight fights you) and run the pump overnight',
+				'Retest free AND total chlorine tomorrow — combined should be near 0'
+			],
+			priority: 0,
+			moves: ['fc'],
+			dependsOn: []
+		});
+	}
+
 	if (readings.fc === null) {
 		// sanitation is the one reading the engine can't work around (spec §2 requiredFor)
 		verdicts.push({ parameter: 'fc', status: 'not-tested', note: null });
@@ -222,28 +276,29 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				status: 'low',
 				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
 			});
-			candidates.push({
-				parameter: 'fc',
-				kind: 'dose',
-				status: 'low',
-				direction: 'raise',
-				currentValue: readings.fc,
-				targetValue: ABSOLUTE_MIN_FC_RAISE_TARGET,
-				title: 'Raise chlorine now',
-				why:
-					readings.cya === null
-						? 'Safety first: under-sanitised water gets worse by the hour. Test CYA too — without stabiliser, sunlight burns chlorine off within hours.'
-						: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.',
-				sideEffects: [],
-				followUpSteps: [
-					readings.cya === null
-						? 'Retest chlorine in a few hours — and test stabiliser (CYA) too'
-						: 'Retest chlorine in a few hours'
-				],
-				priority: 0,
-				moves: ['fc'],
-				dependsOn: []
-			});
+			if (!needsChloramineShock)
+				candidates.push({
+					parameter: 'fc',
+					kind: 'dose',
+					status: 'low',
+					direction: 'raise',
+					currentValue: readings.fc,
+					targetValue: ABSOLUTE_MIN_FC_RAISE_TARGET,
+					title: 'Raise chlorine now',
+					why:
+						readings.cya === null
+							? 'Safety first: under-sanitised water gets worse by the hour. Test CYA too — without stabiliser, sunlight burns chlorine off within hours.'
+							: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.',
+					sideEffects: [],
+					followUpSteps: [
+						readings.cya === null
+							? 'Retest chlorine in a few hours — and test stabiliser (CYA) too'
+							: 'Retest chlorine in a few hours'
+					],
+					priority: 0,
+					moves: ['fc'],
+					dependsOn: []
+				});
 		} else {
 			verdicts.push({
 				parameter: 'fc',
@@ -262,26 +317,28 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				status: 'low',
 				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
 			});
-			candidates.push({
-				parameter: 'fc',
-				kind: 'dose',
-				status: 'low',
-				direction: 'raise',
-				currentValue: readings.fc,
-				targetValue: Math.min(levelTargets.target, raiseCeiling),
-				title: config.sanitizer === 'bromine' ? 'Raise bromine now' : 'Raise chlorine now',
-				why: 'Safety first: under-sanitised water is the one problem that gets worse by the hour.',
-				sideEffects:
-					config.sanitizer === 'swg'
-						? ['dose manually — the cell alone is too slow to catch up']
-						: [],
-				followUpSteps: [
-					`Retest ${config.sanitizer === 'bromine' ? 'bromine' : 'chlorine'} in a few hours`
-				],
-				priority: 0,
-				moves: ['fc'],
-				dependsOn: []
-			});
+			if (!needsChloramineShock) {
+				candidates.push({
+					parameter: 'fc',
+					kind: 'dose',
+					status: 'low',
+					direction: 'raise',
+					currentValue: readings.fc,
+					targetValue: Math.min(levelTargets.target, raiseCeiling),
+					title: config.sanitizer === 'bromine' ? 'Raise bromine now' : 'Raise chlorine now',
+					why: 'Safety first: under-sanitised water is the one problem that gets worse by the hour.',
+					sideEffects:
+						config.sanitizer === 'swg'
+							? ['dose manually — the cell alone is too slow to catch up']
+							: [],
+					followUpSteps: [
+						`Retest ${config.sanitizer === 'bromine' ? 'bromine' : 'chlorine'} in a few hours`
+					],
+					priority: 0,
+					moves: ['fc'],
+					dependsOn: []
+				});
+			}
 		} else if (readings.fc > levelTargets.high) {
 			verdicts.push({
 				parameter: 'fc',
@@ -292,8 +349,8 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 						: 'A bit high — let it drift down on its own; add nothing.'
 			});
 		} else {
-			verdicts.push({ parameter: 'fc', status: 'ok', note: null });
-			if (readings.fc < levelTargets.target) {
+			verdicts.push({ parameter: 'fc', status: 'ok', note: combinedChlorineNote });
+			if (!needsChloramineShock && readings.fc < levelTargets.target) {
 				candidates.push({
 					parameter: 'fc',
 					kind: config.sanitizer === 'swg' ? 'swg-output' : 'dose',
@@ -638,7 +695,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 		});
 	}
 
-	return { actions, deferred, verdicts, requestInput, saturation, rootCause };
+	return { actions, deferred, verdicts, requestInput, saturation, combinedChlorine, rootCause };
 }
 
 export function parameterDisplayName(parameter: GuidanceParameter | 'temp'): string {

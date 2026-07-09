@@ -64,6 +64,12 @@ describe('demo scenarios reproduce their engine outcomes', () => {
 		expect(result.actions[0].parameter).toBe('fc');
 	});
 
+	it('smelly-water: high combined chlorine triggers the shock action', () => {
+		const result = guidanceFor(scenario('smelly-water'));
+		expect(result.combinedChlorine).toBeCloseTo(1.6, 5);
+		expect(result.actions[0]?.title).toBe('Shock to clear used-up chlorine');
+	});
+
 	it('safety-floor: emergency chlorine raise despite unknown CYA', () => {
 		const result = guidanceFor(scenario('safety-floor'));
 		expect(result.actions[0]?.title).toBe('Raise chlorine now');

@@ -53,11 +53,21 @@ function toTestRows(
 ): NewTestRow[] {
 	const { tester = 'AquaChek 7-in-1', unit = 'ppm', hour = 8 } = options ?? {};
 	return history.map(
-		([daysAgo, ph, freeChlorine, totalAlkalinity, calciumHardness, cyanuricAcid, temperature]) => ({
+		([
+			daysAgo,
+			ph,
+			freeChlorine,
+			totalAlkalinity,
+			calciumHardness,
+			cyanuricAcid,
+			temperature,
+			totalChlorine
+		]) => ({
 			testedAt: daysAgoAt(daysAgo, hour, 30),
 			tester,
 			ph,
 			freeChlorine,
+			totalChlorine: totalChlorine ?? null,
 			totalAlkalinity,
 			totalAlkalinityUnit: unit,
 			calciumHardness,

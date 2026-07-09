@@ -23,7 +23,7 @@ export const DEMO_BASE_POOL = {
 	sunExposure: 'Full sun'
 } satisfies Partial<ProfileValues>;
 
-/** (daysAgo, ph, fc/bromine, ta, ch, cya, temp°C) — null = not measured that day */
+/** (daysAgo, ph, fc/bromine, ta, ch, cya, temp°C, tc?) — null = not measured that day */
 export type HistoryRow = [
 	daysAgo: number,
 	ph: number | null,
@@ -31,7 +31,8 @@ export type HistoryRow = [
 	ta: number | null,
 	ch: number | null,
 	cya: number | null,
-	temp: number | null
+	temp: number | null,
+	tc?: number | null
 ];
 
 export interface GuidanceScenarioDefinition {
@@ -110,6 +111,18 @@ export const GUIDANCE_SCENARIO_DEFINITIONS: GuidanceScenarioDefinition[] = [
 		]
 	},
 	{
+		id: 'smelly-water',
+		title: 'Chlorine smell',
+		description: 'High combined chlorine — the shock-to-clear case',
+		profile: {},
+		history: [
+			[9, 7.4, 3.4, 82, 300, 40, 26, 3.7],
+			[6, 7.4, 3.0, 81, 300, 40, 26, 3.8],
+			[3, 7.5, 2.4, 80, 298, 41, 27, 3.7],
+			[0, 7.4, 2.0, 80, 300, 40, 26, 3.6]
+		]
+	},
+	{
 		id: 'safety-floor',
 		title: 'FC emergency',
 		description: 'Strip shows 0.2 ppm alone — safety raise despite unknown CYA',
@@ -125,12 +138,13 @@ export const GUIDANCE_SCENARIO_DEFINITIONS: GuidanceScenarioDefinition[] = [
 /** the scenario's newest readings in engine shape (history is oldest-first) */
 export function latestReadings(definition: GuidanceScenarioDefinition): {
 	fc: number | null;
+	tc: number | null;
 	ph: number | null;
 	ta: number | null;
 	ch: number | null;
 	cya: number | null;
 	temp: number | null;
 } {
-	const [, ph, fc, ta, ch, cya, temp] = definition.history[definition.history.length - 1];
-	return { fc, ph, ta, ch, cya, temp };
+	const [, ph, fc, ta, ch, cya, temp, tc] = definition.history[definition.history.length - 1];
+	return { fc, tc: tc ?? null, ph, ta, ch, cya, temp };
 }

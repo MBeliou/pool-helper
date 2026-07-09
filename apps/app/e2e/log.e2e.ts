@@ -7,9 +7,10 @@ test('logging a test (with a comma decimal) persists and shows in the journal', 
 	await completeOnboarding(page);
 
 	await page.goto('/log/entry');
+	// rows follow the tester's panel order (AquaChek: fc, tc, ph, …)
 	// pH entered with a French comma — must persist as 7.4, not 7 (the bug we fixed)
-	await page.locator('#reading-0').fill('7,4');
-	await page.locator('#reading-1').fill('3'); // free chlorine
+	await page.locator('#reading-2').fill('7,4'); // pH
+	await page.locator('#reading-0').fill('3'); // free chlorine
 	await page.getByRole('button', { name: /save/i }).click();
 	await expect(page).toHaveURL(/\/results/);
 
@@ -29,7 +30,7 @@ test('an out-of-range reading produces a fix-plan action (dosing pipeline)', asy
 	await completeOnboarding(page);
 
 	await page.goto('/log/entry');
-	await page.locator('#reading-1').fill('0.2'); // very low free chlorine
+	await page.locator('#reading-0').fill('0.2'); // very low free chlorine (first AquaChek row)
 	await page.getByRole('button', { name: /save/i }).click();
 
 	await expect(page).toHaveURL(/\/results/);

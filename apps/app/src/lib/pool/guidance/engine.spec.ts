@@ -14,7 +14,7 @@ const OUTDOOR_CHLORINE_PLASTER: GuidanceConfig = {
 };
 
 function readings(partial: Partial<GuidanceReadings>): GuidanceReadings {
-	return { fc: null, ph: null, ta: null, ch: null, cya: null, temp: null, ...partial };
+	return { fc: null, tc: null, ph: null, ta: null, ch: null, cya: null, temp: null, ...partial };
 }
 
 describe('spec §8 test 1 — the screenshot (CYA = 0)', () => {
@@ -178,6 +178,49 @@ describe('absolute safety floor (rule 0 with undefined FC target)', () => {
 	it('still refuses to bless a decent FC when CYA is 0', () => {
 		const result = runGuidance(readings({ fc: 3, cya: 0 }), OUTDOOR_CHLORINE_PLASTER);
 		expect(result.verdicts.find((verdict) => verdict.parameter === 'fc')?.status).toBe('wont-hold');
+	});
+});
+
+describe('combined (used-up) chlorine', () => {
+	it('CC ≥ 1.0 → single shock action replacing the plain safety raise', () => {
+		const result = runGuidance(
+			readings({ fc: 2.0, tc: 3.6, ph: 7.4, ta: 80, cya: 40, ch: 300, temp: 26 }),
+			OUTDOOR_CHLORINE_PLASTER
+		);
+		expect(result.combinedChlorine).toBeCloseTo(1.6, 5);
+		const fcActions = result.actions.filter((action) => action.parameter === 'fc');
+		expect(fcActions).toHaveLength(1);
+		expect(fcActions[0].title).toBe('Shock to clear used-up chlorine');
+		expect(fcActions[0].priority).toBe(0);
+		expect(fcActions[0].targetValue).toBe(16); // shock level at CYA 40
+	});
+
+	it('0.5 ≤ CC < 1.0 → building note only, no shock action', () => {
+		const result = runGuidance(
+			readings({ fc: 4.8, tc: 5.5, ph: 7.4, ta: 80, cya: 40, ch: 300, temp: 26 }),
+			OUTDOOR_CHLORINE_PLASTER
+		);
+		expect(result.combinedChlorine).toBeCloseTo(0.7, 5);
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+		const fcVerdict = result.verdicts.find((verdict) => verdict.parameter === 'fc');
+		expect(fcVerdict?.note).toMatch(/building/i);
+	});
+
+	it('bromine pools have no free/combined split', () => {
+		const result = runGuidance(readings({ fc: 4, tc: 5.5, ph: 7.4, ta: 80 }), {
+			...OUTDOOR_CHLORINE_PLASTER,
+			sanitizer: 'bromine'
+		});
+		expect(result.combinedChlorine).toBeNull();
+	});
+
+	it('shock target falls back sanely when the FC target is undefined (CYA 0)', () => {
+		const result = runGuidance(
+			readings({ fc: 2.0, tc: 3.5, ph: 7.4, ta: 80, cya: 0 }),
+			OUTDOOR_CHLORINE_PLASTER
+		);
+		const shockAction = result.actions.find((action) => action.title.includes('Shock'));
+		expect(shockAction?.targetValue).toBe(10);
 	});
 });
 

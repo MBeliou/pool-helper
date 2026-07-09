@@ -36,7 +36,7 @@
 	);
 
 	interface ReadingRow {
-		key: ParameterKey;
+		key: string;
 		label: string;
 		/** value exactly as entered, with the unit it was recorded in */
 		valueText: string;
@@ -67,6 +67,15 @@
 				valueText: `${formatReading(stored.value, parameter.decimals)}${stored.unit ? ` ${stored.unit}` : ''}`,
 				status: canonicalValue === null ? 'info' : readingStatus(parameter, canonicalValue)
 			});
+			// total chlorine rides with free chlorine — no band of its own (informational)
+			if (stored.key === 'fc' && currentTest.totalChlorine !== null) {
+				rows.push({
+					key: 'tc',
+					label: 'Total chlorine',
+					valueText: `${formatReading(currentTest.totalChlorine, 1)} ppm`,
+					status: 'info'
+				});
+			}
 		}
 		return rows;
 	});

@@ -11,18 +11,17 @@
 	import HChart from '$lib/pool/components/HChart.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
+	import RangeSelector from '$lib/pool/components/RangeSelector.svelte';
 	import { getTestsSince } from '$lib/pool/db/testsRepository';
 
 	const palette = $derived(theme.palette);
 
-	// Full history is a Pool Doctor Pro feature: free users see a 14-day window,
-	// Pro (and the open web preview) see the long view.
-	const FREE_WINDOW_DAYS = 14;
-	const PRO_WINDOW_DAYS = 90;
-
+	// Range gating (14d free, longer = Pro) lives in RangeSelector; the upsell
+	// card below offers the same unlock more visibly for gated users.
 	let trends = $state<ParameterTrend[]>([]);
 	let loaded = $state(false);
-	let windowDays = $state(FREE_WINDOW_DAYS);
+	let selectedRange = $state('14d');
+	let windowDays = $state(14);
 	let gated = $state(false);
 
 	async function loadTrends() {
@@ -50,33 +49,35 @@
 	onMount(async () => {
 		await app.load();
 		await billing.configure();
-		const unlocked = billing.isPro || !billing.supported;
-		gated = billing.supported && !billing.isPro;
-		windowDays = unlocked ? PRO_WINDOW_DAYS : FREE_WINDOW_DAYS;
+		const unlocked = billing.isPro || !billing.supported || import.meta.env.DEV;
+		gated = billing.supported && !billing.isPro && !import.meta.env.DEV;
+		if (unlocked) {
+			selectedRange = '30d';
+			windowDays = 30;
+		}
 		await loadTrends();
 		loaded = true;
 	});
+
+	function pickRange(label: string, days: number) {
+		selectedRange = label;
+		windowDays = days;
+		loadTrends();
+	}
 
 	async function unlockHistory() {
 		await billing.presentPaywall();
 		if (billing.isPro) {
 			gated = false;
-			windowDays = PRO_WINDOW_DAYS;
-			await loadTrends();
+			pickRange('90d', 90);
 		}
 	}
 </script>
 
 <div class="screen" style="background:{palette.page};">
-	<NavHeader large title="Trends" sub="Tap a reading to dig in">
-		{#snippet right()}
-			<span
-				style="display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:8px 13px;border-radius:999px;white-space:nowrap;"
-				>{windowDays} days</span
-			>
-		{/snippet}
-	</NavHeader>
+	<NavHeader large title="Trends" sub="Tap a reading to dig in" />
 	<div class="scroll" style="padding:16px 18px 0;">
+		<RangeSelector selected={selectedRange} onpick={pickRange} />
 		<div style="display:flex;flex-direction:column;gap:11px;">
 			{#if gated && trends.length > 0}
 				<!-- free users see a limited window; Pro unlocks the long view -->

@@ -100,7 +100,7 @@ const CAUSES: CauseDefinition[] = [
 		id: 'chloramines',
 		title: 'Used-up chlorine (chloramines)',
 		statusKey: 'high',
-		// honest: we cannot measure combined chlorine yet (post-v1 item 2)
+		// evidence comes from combined chlorine (total − free) via the engine
 		fixSummary: 'Shock to break down chloramines'
 	},
 	{
@@ -315,6 +315,11 @@ function evidenceMultiplier(cause: CauseDefinition, guidance: GuidanceResult | n
 	}
 	if (cause.saturationEvidence && guidance.saturation) {
 		multiplier *= cause.saturationEvidence[guidance.saturation.verdict] ?? 1;
+	}
+	// chloramines are measured directly: combined chlorine = total − free
+	if (cause.id === 'chloramines' && guidance.combinedChlorine !== null) {
+		multiplier *=
+			guidance.combinedChlorine >= 1.0 ? 3 : guidance.combinedChlorine >= 0.5 ? 1.8 : 0.3;
 	}
 	return multiplier;
 }

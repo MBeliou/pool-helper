@@ -122,6 +122,7 @@ export function guidanceConfigFromProfile(poolProfile: PoolGuidanceProfile): Gui
 export function guidanceReadingsFromTest(latestTest: TestRow): GuidanceReadings {
 	return {
 		fc: testValue(latestTest, 'fc'),
+		tc: latestTest.totalChlorine,
 		ph: testValue(latestTest, 'ph'),
 		ta: testValue(latestTest, 'ta'),
 		ch: testValue(latestTest, 'ch'),

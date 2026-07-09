@@ -1,0 +1,1 @@
+ALTER TABLE `tests` ADD `total_chlorine` real;

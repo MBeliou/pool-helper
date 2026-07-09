@@ -24,6 +24,7 @@ function makeTest(overrides: Partial<TestRow> = {}): TestRow {
 		tester: 'AquaChek 7-in-1',
 		ph: 7.4,
 		freeChlorine: 3,
+		totalChlorine: null,
 		totalAlkalinity: 100,
 		totalAlkalinityUnit: 'ppm',
 		calciumHardness: 250,

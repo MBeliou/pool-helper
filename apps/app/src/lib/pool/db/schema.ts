@@ -36,6 +36,8 @@ export const testsTable = sqliteTable('tests', {
 	tester: text('tester').notNull(),
 	ph: real('ph'),
 	freeChlorine: real('free_chlorine'),
+	// total chlorine (strips show both) — combined chlorine = total − free
+	totalChlorine: real('total_chlorine'),
 	totalAlkalinity: real('total_alkalinity'),
 	totalAlkalinityUnit: text('total_alkalinity_unit', { enum: HARDNESS_UNITS })
 		.notNull()

@@ -11,9 +11,13 @@ Legend: **What** · **Why deferred** · **Where it lives** · **Notes to pick it
 ---
 
 > **Update 2026-07-09:** the guidance engine shipped (`src/lib/pool/guidance/`) — item 1's
-> intelligence is now being wired deterministically (symptom priors × engine evidence, no LLM) and
+> intelligence is now wired deterministically (symptom priors × engine evidence, no LLM) and
 > item 3 (SWG + bromine chemistry, sanitiser-aware targets/doses) is DONE; see
-> docs/guidance-engine-implementation-notes.md. Item 2 remains open. New item 7 added below.
+> docs/guidance-engine-implementation-notes.md. Item 2 (total chlorine) is DONE too: `totalChlorine`
+> column, per-tester entry (testers now declare `measures` in data.ts), combined chlorine in the
+> engine (note ≥ 0.5 ppm, shock action ≥ 1.0 ppm) and real chloramines evidence in diagnose.
+> Still open from item 3: a **salt reading/parameter for SWG pools** (ranges, dosing, cell-output
+> advice) — the "Salt meter" tester currently contributes only water temperature. New item 7 below.
 
 ## 1. Real problem-diagnosis engine (replace the placeholder wizard)
 

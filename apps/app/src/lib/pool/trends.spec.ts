@@ -16,6 +16,7 @@ function row(testedAt: Date, overrides: Partial<TestRow>): TestRow {
 		tester: 't',
 		ph: null,
 		freeChlorine: null,
+		totalChlorine: null,
 		totalAlkalinity: null,
 		totalAlkalinityUnit: 'ppm',
 		calciumHardness: null,
