@@ -11,7 +11,7 @@ export const site: SiteConfig = {
 	brand: {
 		name: 'My Pool',
 		tagline: 'Crystal-clear water, without the guesswork.',
-		domain: 'mypool.app'
+		domain: 'getmypool.care'
 	},
 
 	// Pre-launch: leave undefined and every download CTA renders a "Coming soon"
@@ -223,7 +223,7 @@ export const site: SiteConfig = {
 				title: 'Support',
 				links: [
 					{ label: 'Help & support', href: '/support' },
-					{ label: 'Contact', href: 'mailto:hello@mypool.app' }
+					{ label: 'Contact', href: 'mailto:hello@getmypool.care' }
 				]
 			},
 			{

@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
-	import { TESTERS, testerIcon, READING_LABELS } from '$lib/pool/data';
+	import { TESTERS, READING_LABELS } from '$lib/pool/data';
 	import { listTesters, type StoredTester } from '$lib/pool/db/testersRepository';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -29,20 +29,17 @@
 			storedTesters.length > 0
 				? storedTesters.map((stored) => ({
 						name: stored.name,
-						icon: testerIcon(stored.name),
 						description:
 							TESTERS.find((catalogueTester) => catalogueTester.name === stored.name)
 								?.description ?? stored.measures.map((key) => READING_LABELS[key]).join(' · ')
 					}))
 				: TESTERS.map((catalogueTester) => ({
 						name: catalogueTester.name,
-						icon: catalogueTester.icon,
 						description: catalogueTester.description
 					}));
 		if (!choices.some((choice) => choice.name === app.tester)) {
 			choices.unshift({
 				name: app.tester,
-				icon: testerIcon(app.tester),
 				description:
 					TESTERS.find((catalogueTester) => catalogueTester.name === app.tester)?.description ??
 					'Current tester'
@@ -78,7 +75,7 @@
 						onclick={() => pickTester(tester.name)}
 						style="text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {selected
 							? palette.accent
-							: 'transparent'};position:relative;"
+							: 'transparent'};position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:96px;"
 					>
 						{#if selected}
 							<span
@@ -87,14 +84,13 @@
 							>
 						{/if}
 						<div
-							style="width:42px;height:42px;border-radius:13px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};margin-bottom:12px;"
+							style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;padding-right:{selected
+								? '70px'
+								: '0'};"
 						>
-							<Icon name={tester.icon} size={22} strokeWidth={1.8} />
-						</div>
-						<div style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;">
 							{tester.name}
 						</div>
-						<div style="font-size:12px;color:{palette.inkMuted};margin-top:2px;">
+						<div style="font-size:12px;color:{palette.inkMuted};">
 							{tester.description}
 						</div>
 					</button>

@@ -5,6 +5,7 @@ import { listTests } from './testsRepository';
 import { listActions } from './actionsRepository';
 import { listIssues, listEventsForIssue } from './issuesRepository';
 import { listDiagnoses } from './diagnosesRepository';
+import { listTesters, type StoredTester } from './testersRepository';
 import migrationJournal from './migrations/meta/_journal.json';
 import type { ActionRow, DiagnosisRow, IssueEventRow, IssueRow, TestRow } from './schema';
 
@@ -14,6 +15,7 @@ export interface ExportBundle {
 	schemaVersion: number;
 	exportedAt: string;
 	profile: ProfileValues | null;
+	testers: StoredTester[];
 	tests: TestRow[];
 	actions: ActionRow[];
 	issues: (IssueRow & { events: IssueEventRow[] })[];
@@ -28,6 +30,7 @@ export async function exportAllData(): Promise<ExportBundle> {
 	// sequential: the drizzle sqlite-proxy shares one connection, so we don't
 	// fire overlapping queries at it
 	const profile = (await loadProfile()) ?? null;
+	const testers = await listTesters();
 	const tests = await listTests();
 	const actions = await listActions();
 	const issues = await listIssues();
@@ -43,6 +46,7 @@ export async function exportAllData(): Promise<ExportBundle> {
 		schemaVersion: SCHEMA_VERSION,
 		exportedAt: new Date().toISOString(),
 		profile,
+		testers,
 		tests,
 		actions,
 		issues: issuesWithEvents,

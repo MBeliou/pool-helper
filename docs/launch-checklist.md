@@ -50,10 +50,9 @@ Until these exist, "Start my 3-day free trial" / "Get Pro" open an empty/non-ren
    - a **non-consumable** "Lifetime" one-time purchase.
    Fill in pricing, display names, and review info (a screenshot of the paywall is required).
 2. 🧑 **RevenueCat dashboard** (https://app.revenuecat.com):
-   - Create an **entitlement** whose identifier is **exactly `Pool Doctor Pro`** (that's the string
-     the app gates on — `revenuecatConfig.ts` `POOL_DOCTOR_PRO_ENTITLEMENT`). Attach both products to it.
-     - 🤝 (Optional) If you'd rather the internal name match the brand ("My Pool Pro"), tell me and I'll
-       change the constant — then name the dashboard entitlement the same.
+   - Create an **entitlement** whose identifier is **exactly `My Pool Pro`** (that's the string
+     the app gates on — `revenuecatConfig.ts` `MY_POOL_PRO_ENTITLEMENT`). Attach both products to it.
+     - ✅ (2026-07-09) Renamed from `Pool Doctor Pro` to match the brand — decided & done in code.
    - Add the App Store products to RevenueCat, put them in an **Offering**, and **build a Paywall**
      (annual as trial-default + lifetime). The hosted Paywall is what `presentPaywall()` shows.
 3. 🤝 **Real API key** — `revenuecatConfig.ts` currently ships `REVENUECAT_IOS_API_KEY = 'test_…'`.
@@ -77,15 +76,17 @@ Until these exist, "Start my 3-day free trial" / "Get Pro" open an empty/non-ren
 
 ## Launch requirements — code 🤖
 
-- [ ] **Tester TYPE in tester storage** (2026-07-09). The `testers` table stores name +
-  measured readings but not the KIND of kit — strips / liquid drops / digital meter. Strip
-  readings are known-unreliable; the guidance engine will eventually weight readings by
-  tester type (e.g. softer verdicts near band edges from strips, drop-kit readings trusted).
-  Rework before launch: add a `type` column (`strips` | `drops` | `meter`) to `testers`
-  (migration), set it in the catalogue (`src/lib/pool/data.ts` — names are already generic:
-  "Test strips" / "Drop test kit" / "Salt meter"), add a type picker to `TesterForm.svelte`,
-  and backfill existing rows by catalogue-name match (custom rows default to `strips`,
-  the conservative choice).
+- [x] **Tester TYPE in tester storage** (done 2026-07-09). `testers` now has a `type` column
+  (`strips` | `drops` | `meter`; migration `0013_tester_type` backfills by catalogue + legacy
+  names, custom rows default to `strips`). The catalogue (`src/lib/pool/data.ts`) carries the
+  type, `TesterForm.svelte` has a kind-of-kit picker (defaults to strips), and
+  `resolveTesterType()` is the seam the guidance engine will read when it starts weighting
+  readings by tester reliability.
+- [x] **Domain change** (done 2026-07-09). Switched to **getmypool.care**: marketing `site.ts`
+  domain (drives canonical/og URLs + `hello@getmypool.care` mailtos), `robots.txt`/`sitemap.xml`,
+  and App Store metadata (`tools/metadata/urls.txt` support/marketing/privacy URLs + contact email
+  in description/release notes — re-run `push-metadata.ts` to sync ASC). Bundle id
+  `care.mypool.app` and the `mypool://` deep-link scheme are identifiers, not domains — unchanged.
 
 ## Phase 5 — On-device QA (verify what shipped) 🧑
 

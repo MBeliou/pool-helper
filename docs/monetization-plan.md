@@ -79,7 +79,7 @@ entitlement hydrates.
 1. **RevenueCat dashboard configuration.** `presentPaywall()` renders the paywall attached to the
    **current Offering**. Until an Offering with a Paywall and a product exist in the dashboard,
    the trial CTA and the "Get Pro" button will error/show nothing on device.
-   - Create the entitlement **`Pool Doctor Pro`** (must match `POOL_DOCTOR_PRO_ENTITLEMENT`
+   - Create the entitlement **`My Pool Pro`** (must match `MY_POOL_PRO_ENTITLEMENT`
      exactly — it is the key read from `customerInfo.entitlements.active`).
    - Create the subscription product(s) in App Store Connect with a **3-day free introductory
      offer**, attach to the entitlement, build the Paywall.
@@ -101,14 +101,13 @@ entitlement hydrates.
    IDs, so some users won't see the free days — RC's paywall reflects eligibility; our static
    onboarding "3 days free" copy does not (acceptable, but be aware).
 
-5. **App name vs. Pro name — ✅ copy aligned 2026-06-18.** The app is now **"My Pool"** (bundle id
-   `care.mypool.app`, from the owned domain `mypool.care`; production-plan #3) and the user-facing
-   tier copy is **"My Pool Pro"** (updated in `more/+page.svelte` and `onboarding/premium`). The
-   RevenueCat **entitlement key is still `Pool Doctor Pro`** (`revenuecatConfig.ts`
-   `POOL_DOCTOR_PRO_ENTITLEMENT`) — left unchanged because it's a dashboard key and the dashboard
-   isn't set up yet. **Follow-up:** when configuring the RevenueCat dashboard, decide whether to
-   rename the entitlement to `My Pool Pro` (then change both the dashboard and the constant) or keep
-   the internal name; either is fine since it's never shown to users.
+5. **App name vs. Pro name — ✅ copy aligned 2026-06-18, entitlement renamed 2026-07-09.** The app
+   is **"My Pool"** (bundle id `care.mypool.app`, chosen when the expected domain was `mypool.care`;
+   the actual domain is now `getmypool.care` — bundle id kept, it's just an identifier;
+   production-plan #3) and the user-facing tier copy is **"My Pool Pro"** (updated in
+   `more/+page.svelte` and `onboarding/premium`). The RevenueCat entitlement constant is now
+   **`My Pool Pro`** (`revenuecatConfig.ts` `MY_POOL_PRO_ENTITLEMENT`) — renamed before the
+   dashboard was set up, so create the dashboard entitlement as exactly `My Pool Pro`.
 
 6. **App Store subscription compliance.** Apple guideline 3.1.2 requires the paywall to surface
    price/period, a privacy-policy and terms-of-use link, and Restore (we have Restore). RC's

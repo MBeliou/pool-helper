@@ -7,7 +7,7 @@
 
 	const palette = $derived(theme.palette);
 
-	// What Pool Doctor Pro unlocks — benefit-led copy for the upsell. The real
+	// What My Pool Pro unlocks — benefit-led copy for the upsell. The real
 	// price and trial terms are rendered by the RevenueCat paywall itself, so we
 	// keep numbers out of here to avoid drifting from the dashboard configuration.
 	const proFeatures: { title: string; detail: string }[] = [

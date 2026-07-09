@@ -31,10 +31,15 @@ export const profileTable = sqliteTable('profile', {
 
 // The user's testers (picked from the catalogue at setup, or custom-built).
 // `measures` is a JSON ReadingKey[] — what the kit can record, in panel order.
+// `type` is the kind of kit — the guidance engine will weight reading
+// reliability by it (strips are known-imprecise, drops trusted).
 export const testersTable = sqliteTable('testers', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	name: text('name').notNull(),
 	measures: text('measures').notNull(),
+	type: text('type', { enum: ['strips', 'drops', 'meter'] })
+		.notNull()
+		.default('strips'),
 	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 

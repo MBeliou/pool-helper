@@ -32,6 +32,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^22",
+		"@types/sql.js": "^1.4.11",
 		"@vitest/browser-playwright": "^4.1.8",
 		"@vitest/coverage-v8": "^4.1.8",
 		"clsx": "^2.1.1",
@@ -60,7 +61,6 @@
 		"vitest-browser-svelte": "^2.1.1"
 	},
 	"dependencies": {
-		"@my-pool/shared": "workspace:*",
 		"@capacitor-community/sqlite": "^8.1.0",
 		"@capacitor/app": "^8.0.0",
 		"@capacitor/core": "^8.4.0",
@@ -70,6 +70,7 @@
 		"@capacitor/share": "^8.0.1",
 		"@capacitor/splash-screen": "^8.0.1",
 		"@capacitor/status-bar": "^8.0.2",
+		"@my-pool/shared": "workspace:*",
 		"@revenuecat/purchases-capacitor": "13.1.7",
 		"@revenuecat/purchases-capacitor-ui": "13.1.7",
 		"drizzle-orm": "^0.45.2",

@@ -1,5 +1,5 @@
 <script module lang="ts">
-	// Longer windows are a Pool Doctor Pro feature; free users get the 14-day
+	// Longer windows are a My Pool Pro feature; free users get the 14-day
 	// view. Enforcement is native-only — the web preview and dev builds leave
 	// every range unlocked (the paywall can't present on a bare simulator).
 	export const TREND_RANGES: { label: string; days: number; free?: boolean }[] = [

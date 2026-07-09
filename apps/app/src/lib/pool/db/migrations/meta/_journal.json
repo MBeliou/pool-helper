@@ -92,6 +92,13 @@
 			"when": 1783604103214,
 			"tag": "0012_custom_testers",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "6",
+			"when": 1783605000000,
+			"tag": "0013_tester_type",
+			"breakpoints": true
 		}
 	]
 }

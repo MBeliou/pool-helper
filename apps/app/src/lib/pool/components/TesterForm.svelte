@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { theme } from '../state/theme.svelte';
-	import { ALL_READING_KEYS, READING_LABELS, type ReadingKey } from '../data';
+	import {
+		ALL_READING_KEYS,
+		READING_LABELS,
+		TESTER_TYPE_LABELS,
+		type ReadingKey,
+		type TesterType
+	} from '../data';
 	import { insertTester } from '../db/testersRepository';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -16,8 +22,12 @@
 	const palette = $derived(theme.palette);
 
 	let testerName = $state('');
+	// strips is the conservative default — the engine will trust its readings least
+	let pickedType = $state<TesterType>('strips');
 	const pickedKeys = new SvelteSet<ReadingKey>();
 	let saving = $state(false);
+
+	const TESTER_TYPES: TesterType[] = ['strips', 'drops', 'meter'];
 
 	const canSave = $derived(testerName.trim().length > 0 && pickedKeys.size > 0 && !saving);
 
@@ -32,7 +42,7 @@
 		const name = testerName.trim();
 		// keep panel order canonical regardless of tap order
 		const measures = ALL_READING_KEYS.filter((key) => pickedKeys.has(key));
-		await insertTester(name, measures);
+		await insertTester(name, measures, pickedType);
 		onsaved(name);
 	}
 </script>
@@ -52,6 +62,26 @@
 			bind:value={testerName}
 			style="width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid {palette.line};background:{palette.card};font-family:var(--font-sans);font-weight:600;font-size:15px;color:{palette.ink};outline:none;caret-color:{palette.accent};"
 		/>
+	</div>
+	<div>
+		<div style="font-size:13px;color:{palette.inkMuted};font-weight:700;margin-bottom:8px;">
+			What kind of kit is it?
+		</div>
+		<div style="display:flex;gap:8px;">
+			{#each TESTER_TYPES as testerType (testerType)}
+				{@const picked = pickedType === testerType}
+				<button
+					onclick={() => (pickedType = testerType)}
+					aria-pressed={picked}
+					style="flex:1;padding:9px 10px;border-radius:999px;font-family:var(--font-sans);font-size:13.5px;font-weight:{picked
+						? 700
+						: 500};background:{picked ? `${palette.accent}15` : palette.card};color:{picked
+						? palette.accent
+						: palette.ink};border:1.5px solid {picked ? palette.accent : palette.line};"
+					>{TESTER_TYPE_LABELS[testerType]}</button
+				>
+			{/each}
+		</div>
 	</div>
 	<div>
 		<div style="font-size:13px;color:{palette.inkMuted};font-weight:700;margin-bottom:8px;">

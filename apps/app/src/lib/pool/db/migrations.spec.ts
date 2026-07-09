@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import initSqlJs from 'sql.js';
 import type { SQLiteDBConnection } from '@capacitor-community/sqlite';
 import { runDatabaseMigrations } from './migrations';
 import migrationJournal from './migrations/meta/_journal.json';
+import createTestersSql from './migrations/0012_custom_testers.sql?raw';
+import testerTypeSql from './migrations/0013_tester_type.sql?raw';
 
 const orderedTags = [...migrationJournal.entries]
 	.sort((left, right) => left.idx - right.idx)
@@ -101,5 +104,45 @@ describe('runDatabaseMigrations', () => {
 		expect(db.commitCount).toBe(0);
 		expect(db.appliedTags.has(lastTag)).toBe(false);
 		expect(db.appliedOrder).toEqual([]); // the failed insert never landed
+	});
+});
+
+describe('0013_tester_type backfill', () => {
+	const statements = (sql: string) =>
+		sql
+			.split('--> statement-breakpoint')
+			.map((statement) => statement.trim())
+			.filter(Boolean);
+
+	it('maps catalogue + legacy names to their type; custom rows stay strips', async () => {
+		const SQL = await initSqlJs();
+		const db = new SQL.Database();
+		// only the testers CREATE from 0012 — the profile half needs earlier migrations
+		db.run(statements(createTestersSql)[0]);
+
+		const preMigrationNames = [
+			'Test strips',
+			'Drop test kit',
+			'Salt meter',
+			'AquaChek 7-in-1',
+			'Taylor K-2006',
+			'My Custom Kit'
+		];
+		for (const name of preMigrationNames) {
+			db.run('INSERT INTO testers (name, measures, created_at) VALUES (?, ?, ?)', [name, '[]', 0]);
+		}
+
+		for (const statement of statements(testerTypeSql)) db.run(statement);
+
+		const rows = db.exec('SELECT name, type FROM testers ORDER BY id')[0].values;
+		expect(Object.fromEntries(rows)).toEqual({
+			'Test strips': 'strips',
+			'Drop test kit': 'drops',
+			'Salt meter': 'meter',
+			'AquaChek 7-in-1': 'strips',
+			'Taylor K-2006': 'drops',
+			'My Custom Kit': 'strips'
+		});
+		db.close();
 	});
 });

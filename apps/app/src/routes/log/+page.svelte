@@ -10,8 +10,14 @@
 	import { listTests } from '$lib/pool/db/testsRepository';
 	import { insertAction, listActions } from '$lib/pool/db/actionsRepository';
 	import { listIssues } from '$lib/pool/db/issuesRepository';
-	import { insertTester, listTesters, type StoredTester } from '$lib/pool/db/testersRepository';
-	import { TESTERS } from '$lib/pool/data';
+	import { goto } from '$app/navigation';
+	import {
+		deleteTester,
+		insertTester,
+		listTesters,
+		type StoredTester
+	} from '$lib/pool/db/testersRepository';
+	import { TESTERS, TESTER_TYPE_LABELS } from '$lib/pool/data';
 	import TesterForm from '$lib/pool/components/TesterForm.svelte';
 	import type { TestRow } from '$lib/pool/db/schema';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -35,18 +41,25 @@
 		storedTesters = await listTesters();
 	}
 
+	async function removeStoredTester(testerId: number) {
+		await deleteTester(testerId);
+		storedTesters = await listTesters();
+	}
+
 	async function confirmTesterSetup() {
 		if (!canConfirmSetup) return;
 		// picked catalogue kits become rows too — one list, one source of truth
 		for (const catalogueTester of TESTERS) {
 			if (pickedCatalogue.has(catalogueTester.name)) {
-				await insertTester(catalogueTester.name, catalogueTester.measures);
+				await insertTester(catalogueTester.name, catalogueTester.measures, catalogueTester.type);
 			}
 		}
 		storedTesters = await listTesters();
 		app.tester = storedTesters[0]?.name ?? app.tester;
 		app.testerSetupDone = true;
 		await app.save();
+		// straight into logging the first test — the journal is empty at this point
+		await goto('/log/new');
 	}
 
 	interface JournalEntry {
@@ -143,6 +156,32 @@
 				Pick the kits you own — the test form will show exactly what each one reads.
 			</div>
 			<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+				<!-- the user's own kits come first — already saved, shown as owned -->
+				{#each storedTesters as stored (stored.id)}
+					<div
+						style="position:relative;text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {palette.accent};display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:96px;"
+					>
+						<span
+							style="position:absolute;top:11px;right:11px;width:20px;height:20px;border-radius:999px;background:{palette.accent};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;"
+							>✓</span
+						>
+						<div
+							style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;padding-right:26px;"
+						>
+							{stored.name}
+						</div>
+						<div style="font-size:12px;color:{palette.inkMuted};padding-right:30px;">
+							{stored.measures.length} readings · {TESTER_TYPE_LABELS[stored.type]}
+						</div>
+						<button
+							onclick={() => removeStoredTester(stored.id)}
+							aria-label="Remove {stored.name}"
+							style="position:absolute;bottom:8px;right:8px;width:26px;height:26px;border-radius:999px;background:{palette.page};border:1px solid {palette.line};display:grid;place-items:center;color:{palette.inkMuted};padding:0;"
+						>
+							<Icon name="close" size={13} strokeWidth={2.2} />
+						</button>
+					</div>
+				{/each}
 				{#each TESTERS as catalogueTester (catalogueTester.name)}
 					{@const picked = pickedCatalogue.has(catalogueTester.name)}
 					<button
@@ -150,7 +189,7 @@
 						aria-pressed={picked}
 						style="text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {picked
 							? palette.accent
-							: 'transparent'};position:relative;"
+							: 'transparent'};position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:96px;"
 					>
 						{#if picked}
 							<span
@@ -159,34 +198,16 @@
 							>
 						{/if}
 						<div
-							style="width:42px;height:42px;border-radius:13px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};margin-bottom:12px;"
+							style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;padding-right:26px;"
 						>
-							<Icon name={catalogueTester.icon} size={22} strokeWidth={1.8} />
-						</div>
-						<div style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;">
 							{catalogueTester.name}
 						</div>
-						<div style="font-size:12px;color:{palette.inkMuted};margin-top:2px;">
+						<div style="font-size:12px;color:{palette.inkMuted};">
 							{catalogueTester.description}
 						</div>
 					</button>
 				{/each}
 			</div>
-			{#each storedTesters as stored (stored.id)}
-				<div
-					style="display:flex;align-items:center;gap:11px;background:{palette.card};border-radius:14px;padding:12px 14px;box-shadow:{palette.shadow};margin-bottom:10px;"
-				>
-					<div style="color:{palette.accent};">
-						<Icon name="beaker" size={18} strokeWidth={1.8} />
-					</div>
-					<div style="flex:1;font-weight:700;font-size:14px;color:{palette.ink};">
-						{stored.name}
-					</div>
-					<span style="font-size:12px;color:{palette.inkMuted};"
-						>{stored.measures.length} readings</span
-					>
-				</div>
-			{/each}
 			{#if customFormOpen}
 				<div
 					style="background:{palette.card};border-radius:18px;padding:16px 15px;box-shadow:{palette.shadow};margin-bottom:16px;"

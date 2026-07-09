@@ -6,7 +6,7 @@
  * Must match EXACTLY (it is the key inside `customerInfo.entitlements.active`),
  * not a product id. Everything Pro-gated checks this one string.
  */
-export const POOL_DOCTOR_PRO_ENTITLEMENT = 'Pool Doctor Pro';
+export const MY_POOL_PRO_ENTITLEMENT = 'My Pool Pro';
 
 // Public SDK keys (safe to ship in the client bundle — these are not secret
 // server keys). Find them in RevenueCat → Project Settings → API Keys → your

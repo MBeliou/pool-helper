@@ -6,7 +6,7 @@ import type {
 } from '@revenuecat/purchases-capacitor';
 import type { PAYWALL_RESULT } from '@revenuecat/purchases-capacitor-ui';
 import {
-	POOL_DOCTOR_PRO_ENTITLEMENT,
+	MY_POOL_PRO_ENTITLEMENT,
 	REVENUECAT_IOS_API_KEY,
 	REVENUECAT_ANDROID_API_KEY
 } from './revenuecatConfig';
@@ -32,14 +32,14 @@ function isUserCancellation(error: unknown, cancelledCode: PURCHASES_ERROR_CODE)
 
 /**
  * Subscription/entitlement state, mirroring the `app` state-singleton pattern.
- * `isPro` is the single source of truth for gating premium ("Pool Doctor Pro")
+ * `isPro` is the single source of truth for gating premium ("My Pool Pro")
  * features — read it anywhere, and call `presentPaywall()` to sell access.
  *
  * Billing is non-critical: `configure()` never throws, so a RevenueCat outage
  * can't block the app from loading. Failures land in `configureError`.
  */
 class BillingState {
-	/** True while the current user has the Pool Doctor Pro entitlement active. */
+	/** True while the current user has the My Pool Pro entitlement active. */
 	isPro = $state(false);
 	/** True once `configure()` has finished its first customer-info fetch. */
 	ready = $state(false);
@@ -94,7 +94,7 @@ class BillingState {
 
 	/** Derives `isPro` from the entitlement map keyed by dashboard identifier. */
 	private applyCustomerInfo(customerInfo: CustomerInfo): void {
-		this.isPro = POOL_DOCTOR_PRO_ENTITLEMENT in customerInfo.entitlements.active;
+		this.isPro = MY_POOL_PRO_ENTITLEMENT in customerInfo.entitlements.active;
 	}
 
 	/**
@@ -119,7 +119,7 @@ class BillingState {
 	}
 
 	/**
-	 * Presents the paywall only when the user lacks Pool Doctor Pro — the entry
+	 * Presents the paywall only when the user lacks My Pool Pro — the entry
 	 * point for future "tap a locked feature → upsell" flows. Returns NOT_PRESENTED
 	 * (treated as "already entitled") when Pro is already active.
 	 */
@@ -128,7 +128,7 @@ class BillingState {
 		try {
 			const { RevenueCatUI, PAYWALL_RESULT } = await loadUi();
 			const { result } = await RevenueCatUI.presentPaywallIfNeeded({
-				requiredEntitlementIdentifier: POOL_DOCTOR_PRO_ENTITLEMENT
+				requiredEntitlementIdentifier: MY_POOL_PRO_ENTITLEMENT
 			});
 			if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
 				await this.refresh();

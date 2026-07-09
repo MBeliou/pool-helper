@@ -45,7 +45,8 @@ Legend: **Why** (what's wrong today) · **Do** (implementation guidance) · **Do
 
 ### 3. App identity — 🟡 config done 2026-06-18 (icon artwork pending)
 
-- **Done 2026-06-18:** bundle id `care.mypool.app` (reverse-DNS of the owned domain `mypool.care`),
+- **Done 2026-06-18:** bundle id `care.mypool.app` (reverse-DNS of the then-expected domain
+  `mypool.care`; the domain actually procured is `getmypool.care` — bundle id kept unchanged),
   display name **"My Pool"** (`capacitor.config.ts`, `Info.plist` `CFBundleDisplayName`,
   `project.pbxproj` `PRODUCT_BUNDLE_IDENTIFIER`), `MARKETING_VERSION = 1.0.0` /
   `CURRENT_PROJECT_VERSION = 1`, launch-screen background set to brand blue `#0B5A92`, in-app brand

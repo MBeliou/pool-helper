@@ -1,9 +1,9 @@
 # App-level URLs and category choices. push-metadata.ts reads these.
 # (One value per key; edit and re-push.)
 
-support_url=https://mypool.app/support
-marketing_url=https://mypool.app
-privacy_url=https://mypool.app/privacy
+support_url=https://getmypool.care/support
+marketing_url=https://getmypool.care
+privacy_url=https://getmypool.care/privacy
 
 # App Store category ids (see push-metadata.ts for the enum).
 primary_category=LIFESTYLE

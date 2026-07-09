@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
-	import { TESTERS, testerIcon, READING_LABELS } from '$lib/pool/data';
+	import { TESTERS, resolveTesterType, READING_LABELS, TESTER_TYPE_LABELS } from '$lib/pool/data';
 	import { deleteTester, listTesters, type StoredTester } from '$lib/pool/db/testersRepository';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -30,7 +30,7 @@
 				? storedTesters.map((stored) => ({
 						id: stored.id as number | null,
 						name: stored.name,
-						icon: testerIcon(stored.name),
+						typeLabel: TESTER_TYPE_LABELS[stored.type],
 						description:
 							TESTERS.find((catalogueTester) => catalogueTester.name === stored.name)
 								?.description ?? stored.measures.map((key) => READING_LABELS[key]).join(' · ')
@@ -38,14 +38,14 @@
 				: TESTERS.map((catalogueTester) => ({
 						id: null as number | null,
 						name: catalogueTester.name,
-						icon: catalogueTester.icon,
+						typeLabel: TESTER_TYPE_LABELS[catalogueTester.type],
 						description: catalogueTester.description
 					}));
 		if (!cards.some((card) => card.name === app.tester)) {
 			cards.unshift({
 				id: null,
 				name: app.tester,
-				icon: testerIcon(app.tester),
+				typeLabel: TESTER_TYPE_LABELS[resolveTesterType(app.tester, storedTesters)],
 				description:
 					TESTERS.find((catalogueTester) => catalogueTester.name === app.tester)?.description ??
 					'Current tester'
@@ -85,9 +85,9 @@
 					<div style="position:relative;">
 						<button
 							onclick={() => pickTester(tester.name)}
-							style="width:100%;text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {selected
+							style="width:100%;height:100%;text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {selected
 								? palette.accent
-								: 'transparent'};"
+								: 'transparent'};display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:96px;"
 						>
 							{#if selected}
 								<span
@@ -96,15 +96,19 @@
 								>
 							{/if}
 							<div
-								style="width:42px;height:42px;border-radius:13px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};margin-bottom:12px;"
+								style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;padding-right:{selected
+									? '56px'
+									: '26px'};"
 							>
-								<Icon name={tester.icon} size={22} strokeWidth={1.8} />
-							</div>
-							<div style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;">
 								{tester.name}
 							</div>
-							<div style="font-size:12px;color:{palette.inkMuted};margin-top:2px;">
-								{tester.description}
+							<div>
+								<div style="font-size:12px;color:{palette.inkMuted};">
+									{tester.description}
+								</div>
+								<div style="font-size:11px;font-weight:600;color:{palette.inkMuted};margin-top:3px;">
+									{tester.typeLabel}
+								</div>
 							</div>
 						</button>
 						{#if deletable && !selected}

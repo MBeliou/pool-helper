@@ -22,7 +22,7 @@
 		loaded = true;
 	});
 
-	// Diagnose-by-symptom is a Pool Doctor Pro feature. Enforcement is native-only:
+	// Diagnose-by-symptom is a My Pool Pro feature. Enforcement is native-only:
 	// on web there's no billing, so it stays an open preview for development/design.
 	async function openDiagnose() {
 		await billing.configure(); // ensure entitlement has hydrated before gating
