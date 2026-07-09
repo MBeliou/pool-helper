@@ -57,8 +57,15 @@ export interface FixAction {
 	rangeText: string;
 	/** root-cause reasoning ("high TA keeps dragging pH up…") — null when self-evident */
 	why: string | null;
-	/** delay guidance before the next chemical goes in */
-	waitNote: string | null;
+	/**
+	 * steps after the main one (run pump, retest, repeat). For dose actions the
+	 * UI renders step 1 itself from doseText + productName ("Add 2.3 kg of Dry
+	 * acid") so the amount is welded to the product; these follow from step 2.
+	 * For non-dose actions these are ALL the steps, from step 1.
+	 */
+	followUpSteps: string[];
+	/** engine side effects — rendered inside the math panel only */
+	sideEffects: string[];
 	/** "Add 680 g" — null when the fix isn't a dosed product (dilution, aeration, SWG dial) */
 	doseText: string | null;
 	productName: string;
@@ -89,9 +96,12 @@ export interface FixPlanResult {
 	/** adjustments gated behind a retest */
 	deferred: DeferredFix[];
 	inRange: InRangeReading[];
-	/** engine warnings that aren't actions (e.g. "FC won't hold with CYA at 0") */
-	notices: string[];
-	/** readings the engine wants next time ("water temperature for the scaling check") */
+	/**
+	 * consequence notes with no action of their own ("Left alone, limescale
+	 * builds up…", "FC won't hold with CYA at 0") — shown below the actions
+	 */
+	warnings: string[];
+	/** readings the engine wants next time ("water temperature for the limescale check") */
 	requestInput: string[];
 }
 
@@ -135,12 +145,17 @@ export function doseTextFor(request: DoseRequest, product: DosingProduct): strin
 }
 
 function mathRowsFor(
-	action: { request: DoseRequest; parameter: ParameterDefinition; status: 'low' | 'high' },
+	action: {
+		request: DoseRequest;
+		parameter: ParameterDefinition;
+		status: 'low' | 'high';
+		sideEffects: string[];
+	},
 	product: DosingProduct,
 	displayUnits: DisplayUnits,
 	unitText: string
 ): [string, string][] {
-	const { request, parameter, status } = action;
+	const { request, parameter, status, sideEffects } = action;
 	const delta = Math.abs(request.targetValue - request.currentValue);
 	const rows: [string, string][] = [
 		['Pool volume', `${request.poolVolumeLitres.toLocaleString(localeTag())} L`],
@@ -153,7 +168,12 @@ function mathRowsFor(
 	if (parameter.key === 'ph' && request.totalAlkalinityPpm !== undefined) {
 		rows.push(['Scaled by alkalinity', `${Math.round(request.totalAlkalinityPpm)} ppm`]);
 	}
-	if (product.sideEffectNote) rows.push(['Note', product.sideEffectNote]);
+	// side effects live here, once — the engine's for the action, the product's
+	// own only when the engine has none (avoids "also lowers TA" twice)
+	for (const sideEffect of sideEffects) rows.push(['Side effect', sideEffect]);
+	if (product.sideEffectNote && sideEffects.length === 0) {
+		rows.push(['Side effect', product.sideEffectNote]);
+	}
 	return rows;
 }
 
@@ -176,7 +196,12 @@ export function repriceAction(
 		productName: product.name,
 		doseText: doseTextFor(action.doseRequest, product),
 		mathRows: mathRowsFor(
-			{ request: action.doseRequest, parameter, status: action.status },
+			{
+				request: action.doseRequest,
+				parameter,
+				status: action.status,
+				sideEffects: action.sideEffects
+			},
 			product,
 			displayUnits,
 			displayUnitText(parameter, displayUnits)
@@ -193,7 +218,7 @@ export function computeFixPlan(
 		actions: [],
 		deferred: [],
 		inRange: [],
-		notices: [],
+		warnings: [],
 		requestInput: []
 	};
 	if (!latestTest) return empty;
@@ -224,7 +249,8 @@ export function computeFixPlan(
 				title: engineAction.title,
 				rangeText,
 				why: engineAction.why,
-				waitNote: engineAction.waitNote,
+				followUpSteps: engineAction.followUpSteps,
+				sideEffects: engineAction.sideEffects,
 				doseText: null,
 				productName: '',
 				productOptions: [],
@@ -254,14 +280,20 @@ export function computeFixPlan(
 			title: engineAction.title,
 			rangeText,
 			why: engineAction.why,
-			waitNote: engineAction.waitNote,
+			followUpSteps: engineAction.followUpSteps,
+			sideEffects: engineAction.sideEffects,
 			doseText: defaultProduct ? doseTextFor(doseRequest, defaultProduct) : null,
 			productName: defaultProduct?.name ?? '',
 			productOptions,
 			doseRequest: defaultProduct ? doseRequest : null,
 			mathRows: defaultProduct
 				? mathRowsFor(
-						{ request: doseRequest, parameter, status: engineAction.status },
+						{
+							request: doseRequest,
+							parameter,
+							status: engineAction.status,
+							sideEffects: engineAction.sideEffects
+						},
 						defaultProduct,
 						displayUnits,
 						displayUnitText(parameter, displayUnits)
@@ -277,7 +309,7 @@ export function computeFixPlan(
 	}));
 
 	const inRange: InRangeReading[] = [];
-	const notices: string[] = [];
+	const warnings: string[] = [];
 	const actionKeys = new Set(actions.map((action) => action.key));
 
 	for (const verdict of guidance.verdicts) {
@@ -298,11 +330,11 @@ export function computeFixPlan(
 					`${unitText ? ` ${unitText}` : ''} · in range`
 			});
 			if (verdict.note && !actionKeys.has(verdict.parameter)) {
-				notices.push(`${title}: ${verdict.note}`);
+				warnings.push(`${title}: ${verdict.note}`);
 			}
 		} else if (verdict.note && !actionKeys.has(verdict.parameter)) {
 			// out-of-band (or won't-hold) with no action of its own — surface the reasoning
-			notices.push(`${title}: ${verdict.note}`);
+			warnings.push(`${title}: ${verdict.note}`);
 		}
 	}
 
@@ -310,7 +342,7 @@ export function computeFixPlan(
 		actions,
 		deferred,
 		inRange,
-		notices,
+		warnings,
 		requestInput: guidance.requestInput.map((request) => request.reason)
 	};
 }

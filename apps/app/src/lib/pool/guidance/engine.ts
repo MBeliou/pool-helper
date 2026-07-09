@@ -56,8 +56,8 @@ export interface GuidanceAction {
 	/** root-cause reasoning shown to the user ("high TA keeps dragging pH up…") */
 	why: string | null;
 	sideEffects: string[];
-	/** delay guidance before the next chemical goes in */
-	waitNote: string | null;
+	/** what to do after the main step (run pump, retest, repeat) — in order */
+	followUpSteps: string[];
 	priority: number;
 }
 
@@ -106,9 +106,10 @@ interface CandidateAdjustment extends Omit<GuidanceAction, 'priority'> {
 const ABSOLUTE_MIN_FC = 1;
 const ABSOLUTE_MIN_FC_RAISE_TARGET = 3;
 
-const WAIT_AFTER_ACID = 'Run the pump ~1 h and retest pH before adding anything else.';
-const WAIT_AFTER_CYA =
-	'Stabiliser dissolves slowly (sock in the skimmer) — retest CYA in 2–3 days.';
+const AFTER_ACID_STEPS = [
+	'Run the pump for about an hour',
+	'Retest pH — still high? Repeat this step tomorrow'
+];
 
 export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig): GuidanceResult {
 	const verdicts: ParameterVerdict[] = [];
@@ -166,7 +167,10 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				? `This is the root problem: without stabiliser, UV burns off ${sanitizerName} within hours — no chlorine level can hold until CYA is up.`
 				: `Stabiliser shields ${sanitizerName} from sunlight.`,
 			sideEffects: [`your ${sanitizerName} target rises with CYA — re-derive after`],
-			waitNote: WAIT_AFTER_CYA,
+			followUpSteps: [
+				'Put the granules in a sock in the skimmer basket',
+				'Retest stabiliser in 2–3 days — it dissolves slowly'
+			],
 			priority: 1,
 			moves: ['cya'],
 			dependsOn: []
@@ -183,11 +187,12 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			currentValue: readings.cya,
 			targetValue: cyaTargetBand.target,
 			title: 'Lower stabiliser by diluting',
-			why: `Stabiliser only leaves with the water: drain and refill about ${Math.round(
-				drainFraction * 100
-			)}% to get back to ~${cyaTargetBand.target} ppm. Too much CYA locks up your ${sanitizerName}.`,
-			sideEffects: ['dilution also lowers TA, CH and salt — retest everything after'],
-			waitNote: null,
+			why: `Too much stabiliser locks up your ${sanitizerName}, and it only leaves with the water.`,
+			sideEffects: ['dilution also lowers TA, CH and salt'],
+			followUpSteps: [
+				`Drain about ${Math.round(drainFraction * 100)}% of the water and refill`,
+				'Run the pump a few hours to mix, then retest everything'
+			],
 			priority: 1,
 			moves: ['cya', 'ta', 'ch', 'fc'],
 			dependsOn: []
@@ -230,7 +235,11 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 						? 'Safety first: under-sanitised water gets worse by the hour. Test CYA too — without stabiliser, sunlight burns chlorine off within hours.'
 						: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.',
 				sideEffects: [],
-				waitNote: null,
+				followUpSteps: [
+					readings.cya === null
+						? 'Retest chlorine in a few hours — and test stabiliser (CYA) too'
+						: 'Retest chlorine in a few hours'
+				],
 				priority: 0,
 				moves: ['fc'],
 				dependsOn: []
@@ -266,7 +275,9 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					config.sanitizer === 'swg'
 						? ['dose manually — the cell alone is too slow to catch up']
 						: [],
-				waitNote: null,
+				followUpSteps: [
+					`Retest ${config.sanitizer === 'bromine' ? 'bromine' : 'chlorine'} in a few hours`
+				],
 				priority: 0,
 				moves: ['fc'],
 				dependsOn: []
@@ -301,7 +312,10 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 							? `Above the safe floor but below target (${levelTargets.target} ppm) — raise the cell output a notch instead of dosing.`
 							: `Above the safe floor but below the maintenance target of ${levelTargets.target} ppm.`,
 					sideEffects: [],
-					waitNote: null,
+					followUpSteps:
+						config.sanitizer === 'swg'
+							? ['Retest chlorine in a couple of days to confirm the new output holds']
+							: ['Retest tomorrow'],
 					priority: 5,
 					moves: ['fc'],
 					dependsOn: ['cya']
@@ -325,12 +339,12 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			direction: 'lower',
 			currentValue: readings.ph,
 			targetValue: Math.max(PH_BAND.target, readings.ph - PH_MAX_STEP_PER_DOSE),
-			title: 'Lower pH',
+			title: alkalinityHigh ? 'Fix high alkalinity' : 'Lower pH',
 			why: alkalinityHigh
-				? 'The real cause is high alkalinity — it keeps dragging pH up. Acid lowers both, which is exactly what you want here. Expect to repeat this over a few days; do NOT add anything to raise TA back.'
+				? 'The real cause is high alkalinity — it keeps dragging pH up. Acid lowers both, which is exactly what this pool needs. Plan on a few rounds over the coming days, and do NOT add anything to raise TA back.'
 				: 'High pH weakens your sanitiser and irritates skin and eyes.',
 			sideEffects: ['acid also lowers TA'],
-			waitNote: WAIT_AFTER_ACID,
+			followUpSteps: AFTER_ACID_STEPS,
 			priority: 2,
 			moves: ['ph', 'ta'],
 			dependsOn: [],
@@ -351,7 +365,12 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				? 'Your alkalinity is already high, so skip soda ash: point returns at the surface, run water features — aeration raises pH without adding TA.'
 				: 'Low pH is corrosive — it etches surfaces and attacks metal.',
 			sideEffects: useAerationOnly ? [] : ['soda ash also raises TA slightly'],
-			waitNote: useAerationOnly ? null : WAIT_AFTER_ACID,
+			followUpSteps: useAerationOnly
+				? [
+						'Point the return jets up and run any water features',
+						'Retest pH tomorrow — aeration is slow but free'
+					]
+				: ['Run the pump for about an hour', 'Retest pH before adding more'],
 			priority: 2,
 			moves: useAerationOnly ? ['ph'] : ['ph', 'ta'],
 			dependsOn: []
@@ -374,7 +393,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			title: 'Raise alkalinity',
 			why: 'Alkalinity is the pH buffer — too low and pH swings on every splash of rain or acid.',
 			sideEffects: ['baking soda nudges pH up slightly'],
-			waitNote: null,
+			followUpSteps: ['Run the pump for about an hour', 'Retest alkalinity and pH'],
 			priority: 3,
 			moves: ['ta', 'ph'],
 			dependsOn: ['ph']
@@ -395,9 +414,13 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			currentValue: readings.ta,
 			targetValue: alkalinityBand.target,
 			title: 'Lower alkalinity (acid + aeration cycles)',
-			why: `Add acid to pull pH to ~${PH_BAND.low}, then aerate the water back up to ~${PH_BAND.target} — each cycle burns off some TA without a "TA remover" product. Repeat until TA is near ${alkalinityBand.target} ppm.`,
-			sideEffects: ['works in repeated small cycles — retest pH and TA between rounds'],
-			waitNote: WAIT_AFTER_ACID,
+			why: `Each acid-then-aerate cycle burns off some alkalinity without a "TA remover" product. Repeat until TA is near ${alkalinityBand.target} ppm.`,
+			sideEffects: ['works in repeated small cycles'],
+			followUpSteps: [
+				`Add acid to pull pH down to ~${PH_BAND.low}`,
+				`Aerate (jets up, water features on) until pH climbs back to ~${PH_BAND.target}`,
+				'Retest pH and alkalinity, then repeat'
+			],
 			priority: 3,
 			moves: ['ta', 'ph'],
 			dependsOn: ['ph']
@@ -413,7 +436,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 	if (canComputeSaturation && readings.temp === null) {
 		requestInput.push({
 			parameter: 'temp',
-			reason: 'Water temperature is needed for the scaling/corrosion (saturation) check.'
+			reason: 'Water temperature — needed to check for limescale and corrosion risk.'
 		});
 	}
 
@@ -441,12 +464,12 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				parameter: 'ch',
 				status: 'low',
 				note: corrosive
-					? `Water is corrosive (saturation index ${saturation!.value.toFixed(2)}) — it will ${
+					? `Left alone, the water slowly eats at ${
 							surfaceNeedsCalcium(config)
-								? 'etch the plaster and attack equipment'
-								: 'attack metal parts and heat exchangers'
+								? 'the plaster finish and metal equipment'
+								: 'metal parts and heat exchangers'
 						}.`
-					: 'Low calcium on a plaster-type surface — the water will pull calcium out of the finish.'
+					: 'Left alone, the water pulls calcium out of the plaster finish.'
 			});
 			candidates.push({
 				parameter: 'ch',
@@ -457,10 +480,10 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				targetValue: Math.max(hardnessBand.target, readings.ch),
 				title: 'Raise calcium hardness',
 				why: corrosive
-					? 'Hungry (calcium-starved) water dissolves what it touches. Raising CH is the safest lever to bring the saturation index back to balance.'
+					? 'Calcium-starved water dissolves what it touches. Raising hardness is the safest way to bring the water back to balance.'
 					: 'Calcium protects plaster-type finishes from etching.',
-				sideEffects: ['recheck the saturation index after — a small pH/TA nudge may follow'],
-				waitNote: null,
+				sideEffects: ['a small pH/TA nudge may follow'],
+				followUpSteps: ['Run the pump for a few hours', 'Retest hardness'],
 				priority: 4,
 				moves: ['ch'],
 				dependsOn: ['ph', 'ta'],
@@ -470,7 +493,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			verdicts.push({
 				parameter: 'ch',
 				status: hardnessHigh ? 'high' : 'ok',
-				note: `Water is scale-forming (saturation index ${saturation!.value.toFixed(2)}) — cloudiness and scale on equipment.`
+				note: 'Left alone, limescale — a white mineral crust — builds up on surfaces and equipment, and the water can turn cloudy.'
 			});
 			if (hardnessHigh) {
 				candidates.push({
@@ -481,9 +504,12 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					currentValue: readings.ch,
 					targetValue: hardnessBand.target,
 					title: 'Lower calcium by diluting',
-					why: 'Calcium only leaves with the water — partial drain and refill. Keeping pH at the low end of its band also holds scale at bay meanwhile.',
-					sideEffects: ['dilution also lowers CYA, TA and salt — retest after'],
-					waitNote: null,
+					why: 'Calcium only leaves with the water. Keeping pH at the low end of its band also holds limescale at bay meanwhile.',
+					sideEffects: ['dilution also lowers CYA, TA and salt'],
+					followUpSteps: [
+						'Drain part of the water and refill',
+						'Run the pump a few hours to mix, then retest everything'
+					],
 					priority: 4,
 					moves: ['ch', 'cya', 'ta', 'fc'],
 					dependsOn: ['ph', 'ta']
@@ -496,10 +522,10 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					direction: 'lower',
 					currentValue: readings.ph,
 					targetValue: Math.max(PH_BAND.low + 0.2, readings.ph - PH_MAX_STEP_PER_DOSE),
-					title: 'Lower pH a touch (scale control)',
-					why: 'The water is scale-forming; pH is the quickest saturation lever when calcium itself is in range.',
+					title: 'Lower pH a touch (limescale control)',
+					why: 'Limescale is starting to form; with calcium itself in range, pH is the quickest way to stop it.',
 					sideEffects: ['acid also lowers TA'],
-					waitNote: WAIT_AFTER_ACID,
+					followUpSteps: AFTER_ACID_STEPS,
 					priority: 4,
 					moves: ['ph', 'ta'],
 					dependsOn: ['ph', 'ta'],
@@ -511,15 +537,15 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				parameter: 'ch',
 				status: saturation ? 'ok' : 'high',
 				note: saturation
-					? 'Above the usual band, but the saturation index is balanced — just watch it.'
-					: 'High calcium — add a water temperature reading to check scaling risk.'
+					? 'Above the usual band, but the water is balanced overall — just watch it.'
+					: 'High calcium — add a water temperature reading to check the limescale risk.'
 			});
 		} else if (hardnessLow && !surfaceNeedsCalcium(config)) {
 			verdicts.push({
 				parameter: 'ch',
 				status: saturation ? 'ok' : 'low',
 				note: saturation
-					? 'Below the usual band, but the saturation index is balanced and your surface tolerates it.'
+					? 'Below the usual band, but the water is balanced and your surface tolerates it.'
 					: null
 			});
 		} else if (hardnessLow) {
@@ -527,7 +553,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			verdicts.push({
 				parameter: 'ch',
 				status: 'low',
-				note: 'Saturation is balanced today, but low CH leaves no buffer for winter (cold water is more corrosive).'
+				note: 'The water is balanced today, but low calcium leaves no buffer for winter (cold water is more corrosive).'
 			});
 			candidates.push({
 				parameter: 'ch',
@@ -538,8 +564,8 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 				targetValue: hardnessBand.target,
 				title: 'Raise calcium hardness',
 				why: 'Calcium protects plaster-type finishes from etching.',
-				sideEffects: ['recheck the saturation index after'],
-				waitNote: null,
+				sideEffects: ['a small pH/TA nudge may follow'],
+				followUpSteps: ['Run the pump for a few hours', 'Retest hardness'],
 				priority: 4,
 				moves: ['ch'],
 				dependsOn: ['ph', 'ta']
@@ -588,7 +614,7 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			title: candidate.title,
 			why: candidate.why,
 			sideEffects: candidate.sideEffects,
-			waitNote: candidate.waitNote,
+			followUpSteps: candidate.followUpSteps,
 			priority: candidate.priority
 		});
 		for (const movedParameter of candidate.moves) {

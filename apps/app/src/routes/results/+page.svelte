@@ -24,12 +24,14 @@
 	interface ActionDisplay extends FixAction {
 		expanded: boolean;
 		done: boolean;
+		/** the "Show the math" disclosure inside the expanded card */
+		mathOpen: boolean;
 	}
 
 	let actions = $state<ActionDisplay[]>([]);
 	let inRange = $state<InRangeReading[]>([]);
 	let deferred = $state<DeferredFix[]>([]);
-	let notices = $state<string[]>([]);
+	let warnings = $state<string[]>([]);
 	let requestInput = $state<string[]>([]);
 	let loaded = $state(false);
 
@@ -48,11 +50,12 @@
 		actions = fixPlan.actions.map((action, actionIndex) => ({
 			...action,
 			expanded: actionIndex === 0,
-			done: false
+			done: false,
+			mathOpen: false
 		}));
 		inRange = fixPlan.inRange;
 		deferred = fixPlan.deferred;
-		notices = fixPlan.notices;
+		warnings = fixPlan.warnings;
 		requestInput = fixPlan.requestInput;
 		loaded = true;
 		if (actions.length > 0 && !app.disclaimerAcceptedAt) disclaimerOpen = true;
@@ -128,7 +131,7 @@
 <div class="screen" style="background:{palette.page};">
 	<NavHeader title="Fix plan" sub={planSubtitle} />
 	<div class="scroll" style="padding:14px 16px 0;">
-		{#if loaded && actions.length === 0 && notices.length === 0}
+		{#if loaded && actions.length === 0 && warnings.length === 0}
 			<div
 				style="display:flex;align-items:center;gap:10px;background:{palette.status
 					.ok}14;border-radius:13px;padding:11px 13px;margin-bottom:14px;"
@@ -149,22 +152,11 @@
 				</div>
 				<div style="font-size:13px;color:{palette.ink};line-height:1.3;">
 					{actions.length === 1
-						? "Today's step — retest before going further."
+						? "Today's step — do it, then retest before anything else."
 						: 'These are safe to do now. Anything they disturb waits below.'}
 				</div>
 			</div>
 		{/if}
-		{#each notices as notice (notice)}
-			<div
-				style="display:flex;gap:10px;align-items:flex-start;background:{palette.status
-					.high}12;border-radius:13px;padding:11px 13px;margin-bottom:14px;"
-			>
-				<div style="color:{palette.status.high};flex-shrink:0;margin-top:1px;">
-					<Icon name="alert" size={18} strokeWidth={1.9} />
-				</div>
-				<div style="font-size:13px;color:{palette.ink};line-height:1.4;">{notice}</div>
-			</div>
-		{/each}
 		<div style="display:flex;flex-direction:column;gap:11px;">
 			{#each actions as action (action.key)}
 				{@const actionColor = statusColor(palette, action.status)}
@@ -213,7 +205,8 @@
 								{action.rangeText}
 							</div>
 						</div>
-						{#if action.doseText}
+						{#if action.doseText && !action.expanded}
+							<!-- collapsed glance chip; when expanded the dose lives in step 1 -->
 							<span
 								style="font-family:var(--font-display);font-weight:600;font-size:13.5px;color:#fff;background:{actionColor};padding:6px 11px;border-radius:10px;white-space:nowrap;"
 								>{action.doseText}</span
@@ -233,67 +226,93 @@
 						<div style="padding:2px 14px 15px;border-top:1px solid {palette.line};">
 							{#if action.why}
 								<div
-									style="font-size:13px;color:{palette.ink};line-height:1.45;padding:11px 0 2px;"
+									style="font-size:13px;color:{palette.ink};line-height:1.45;padding:11px 0 4px;"
 								>
 									{action.why}
 								</div>
 							{/if}
-							{#if action.productName}
-								<div
-									style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 11px;"
-								>
-									<span style="font-size:13px;color:{palette.inkMuted};">Using product</span>
-									<button
-										onclick={() => (sheetAction = action)}
-										style="display:flex;align-items:center;gap:5px;font-family:var(--font-sans);font-weight:700;font-size:13.5px;color:{palette.ink};background:{palette.page};border:1px solid {palette.line};padding:6px 10px;border-radius:9px;"
-									>
-										{action.productName}<Icon
-											name="chevron"
-											size={13}
-											color={palette.inkMuted}
-											strokeWidth={2.2}
-											style="transform:rotate(90deg);"
-										/>
-									</button>
-								</div>
-								<div
-									style="background:{palette.accent}10;border-radius:12px;padding:11px 13px;margin-bottom:11px;"
-								>
-									<div
-										style="font-size:11.5px;color:{palette.inkMuted};text-transform:uppercase;letter-spacing:0.5px;font-weight:700;"
-									>
-										Add
-									</div>
-									<div
-										style="font-family:var(--font-display);font-weight:600;font-size:26px;color:{palette.accent};"
-									>
-										{action.doseText?.replace('Add ', '')}
-									</div>
-								</div>
-								{#each action.mathRows as [mathLabel, mathValue] (mathLabel)}
-									<div
-										style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:{palette.inkMuted};"
-									>
-										<span>{mathLabel}</span><span
-											style="color:{palette.ink};font-family:var(--font-display);">{mathValue}</span
+							<!-- numbered steps: for doses, step 1 welds the amount to the product -->
+							<div style="display:flex;flex-direction:column;gap:9px;padding:10px 0 2px;">
+								{#if action.doseText && action.productName}
+									<div style="display:flex;align-items:center;gap:10px;">
+										<div
+											style="width:22px;height:22px;border-radius:999px;background:{palette.accent}1a;color:{palette.accent};display:grid;place-items:center;font-size:12px;font-weight:800;flex-shrink:0;"
 										>
+											1
+										</div>
+										<div style="flex:1;font-size:13.5px;color:{palette.ink};line-height:1.4;">
+											Add <b style="color:{palette.accent};"
+												>{action.doseText.replace('Add ', '')}</b
+											>
+											of
+											<button
+												onclick={() => (sheetAction = action)}
+												style="display:inline-flex;align-items:center;gap:4px;font-family:var(--font-sans);font-weight:700;font-size:13px;color:{palette.ink};background:{palette.page};border:1px solid {palette.line};padding:3px 8px;border-radius:8px;vertical-align:baseline;"
+											>
+												{action.productName}<Icon
+													name="chevron"
+													size={11}
+													color={palette.inkMuted}
+													strokeWidth={2.2}
+													style="transform:rotate(90deg);"
+												/>
+											</button>
+										</div>
+									</div>
+								{/if}
+								{#each action.followUpSteps as step, stepIndex (step)}
+									<div style="display:flex;align-items:center;gap:10px;">
+										<div
+											style="width:22px;height:22px;border-radius:999px;background:{palette.inkMuted}18;color:{palette.inkMuted};display:grid;place-items:center;font-size:12px;font-weight:800;flex-shrink:0;"
+										>
+											{stepIndex + (action.doseText && action.productName ? 2 : 1)}
+										</div>
+										<div style="flex:1;font-size:13.5px;color:{palette.ink};line-height:1.4;">
+											{step}
+										</div>
 									</div>
 								{/each}
-							{/if}
-							{#if action.waitNote}
-								<div
-									style="display:flex;gap:8px;align-items:flex-start;background:{palette.page};border-radius:11px;padding:10px 12px;margin-top:10px;"
+							</div>
+							{#if action.mathRows.length > 0}
+								<button
+									onclick={() => (action.mathOpen = !action.mathOpen)}
+									style="display:flex;align-items:center;gap:5px;background:none;border:none;padding:10px 0 2px;font-family:var(--font-sans);font-size:12.5px;font-weight:700;color:{palette.inkMuted};"
 								>
-									<div style="color:{palette.inkMuted};flex-shrink:0;margin-top:1px;">
-										<Icon name="alert" size={15} strokeWidth={1.9} />
-									</div>
-									<div style="font-size:12.5px;color:{palette.inkMuted};line-height:1.4;">
-										{action.waitNote}
-									</div>
-								</div>
+									Show the math<Icon
+										name="chevron"
+										size={12}
+										color={palette.inkMuted}
+										strokeWidth={2.2}
+										style="transform:{action.mathOpen ? 'rotate(90deg)' : 'none'};"
+									/>
+								</button>
+								{#if action.mathOpen}
+									{#each action.mathRows as [mathLabel, mathValue] (mathLabel + mathValue)}
+										<div
+											style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;color:{palette.inkMuted};"
+										>
+											<span style="flex-shrink:0;">{mathLabel}</span><span
+												style="color:{palette.ink};font-family:var(--font-display);text-align:right;"
+												>{mathValue}</span
+											>
+										</div>
+									{/each}
+								{/if}
 							{/if}
 						</div>
 					{/if}
+				</div>
+			{/each}
+			{#each warnings as warning (warning)}
+				<!-- consequence notes: what happens if the water stays like this -->
+				<div
+					style="display:flex;gap:10px;align-items:flex-start;background:{palette.status
+						.high}12;border-radius:13px;padding:11px 13px;"
+				>
+					<div style="color:{palette.status.high};flex-shrink:0;margin-top:1px;">
+						<Icon name="alert" size={18} strokeWidth={1.9} />
+					</div>
+					<div style="font-size:13px;color:{palette.ink};line-height:1.4;">{warning}</div>
 				</div>
 			{/each}
 			{#if deferred.length > 0}

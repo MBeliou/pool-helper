@@ -63,8 +63,9 @@ describe('spec §8 test 2 — high TA dragging pH up', () => {
 
 	it('shows the side effect and the do-not-add-base guidance', () => {
 		expect(result.actions[0].sideEffects.join(' ')).toMatch(/lowers TA/);
-		expect(result.actions[0].why).toMatch(/repeat/i);
+		expect(result.actions[0].why).toMatch(/rounds/i);
 		expect(result.actions[0].why).toMatch(/NOT/);
+		expect(result.actions[0].followUpSteps.join(' ')).toMatch(/repeat/i);
 	});
 
 	it('defers the TA adjustment behind the acid dose', () => {
@@ -91,7 +92,7 @@ describe('spec §8 test 3 — corrosive water (saturation index)', () => {
 		const calciumAction = result.actions.find((action) => action.parameter === 'ch');
 		expect(calciumAction?.direction).toBe('raise');
 		expect(calciumAction?.targetValue).toBe(300);
-		expect(calciumAction?.sideEffects.join(' ')).toMatch(/saturation/i);
+		expect(calciumAction?.sideEffects.join(' ')).toMatch(/nudge/i);
 	});
 });
 
@@ -218,7 +219,7 @@ describe('sequencer & retest-gating (spec §6)', () => {
 		);
 		const phAction = result.actions.find((action) => action.parameter === 'ph');
 		expect(phAction?.targetValue).toBe(8.0);
-		expect(phAction?.waitNote).toMatch(/retest/i);
+		expect(phAction?.followUpSteps.join(' ')).toMatch(/retest/i);
 	});
 });
 
@@ -230,7 +231,7 @@ describe('dilution-only parameters (raisable-only, spec §2)', () => {
 		);
 		const dilutionAction = result.actions.find((action) => action.parameter === 'cya');
 		expect(dilutionAction?.kind).toBe('dilute');
-		expect(dilutionAction?.why).toMatch(/60%/);
+		expect(dilutionAction?.followUpSteps.join(' ')).toMatch(/60%/);
 	});
 });
 
