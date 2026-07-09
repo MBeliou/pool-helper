@@ -7,7 +7,7 @@ test('a fresh pool shows tester setup, then empty log and care states', async ({
 	// first /log visit: tester setup replaces the journal until confirmed
 	await page.goto('/log');
 	await expect(page.getByText('Pick the kits you own', { exact: false })).toBeVisible();
-	await page.getByRole('button', { name: /Taylor K-2006/ }).click();
+	await page.getByRole('button', { name: /Drop test kit/ }).click();
 	await page.getByRole('button', { name: 'Save my testers →' }).click();
 
 	await expect(page.getByText('Nothing logged yet')).toBeVisible();

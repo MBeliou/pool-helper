@@ -21,7 +21,7 @@ function makeTest(overrides: Partial<TestRow> = {}): TestRow {
 	return {
 		id: 1,
 		testedAt: new Date('2024-05-28T09:00:00Z'),
-		tester: 'AquaChek 7-in-1',
+		tester: 'Test strips',
 		ph: 7.4,
 		freeChlorine: 3,
 		totalChlorine: null,

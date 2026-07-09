@@ -75,6 +75,18 @@ Until these exist, "Start my 3-day free trial" / "Get Pro" open an empty/non-ren
 - 🧑 Submit for review; respond to any reviewer questions (subscriptions get scrutiny — the paywall
   must show price/terms + a privacy & terms link + Restore, which RevenueCat's paywall provides).
 
+## Launch requirements — code 🤖
+
+- [ ] **Tester TYPE in tester storage** (2026-07-09). The `testers` table stores name +
+  measured readings but not the KIND of kit — strips / liquid drops / digital meter. Strip
+  readings are known-unreliable; the guidance engine will eventually weight readings by
+  tester type (e.g. softer verdicts near band edges from strips, drop-kit readings trusted).
+  Rework before launch: add a `type` column (`strips` | `drops` | `meter`) to `testers`
+  (migration), set it in the catalogue (`src/lib/pool/data.ts` — names are already generic:
+  "Test strips" / "Drop test kit" / "Salt meter"), add a type picker to `TesterForm.svelte`,
+  and backfill existing rows by catalogue-name match (custom rows default to `strips`,
+  the conservative choice).
+
 ## Phase 5 — On-device QA (verify what shipped) 🧑
 
 Run these on the TestFlight/device build:

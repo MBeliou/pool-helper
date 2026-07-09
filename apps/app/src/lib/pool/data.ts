@@ -12,22 +12,36 @@ export interface Tester {
 	measures: ReadingKey[];
 }
 
+// Generic kit names, not brands. NOTE (launch requirement, see
+// docs/launch-checklist.md): tester storage needs an explicit TYPE
+// (strips/drops/meter) — strips are known-unreliable and the engine will
+// eventually weight readings by it. The names below encode type only loosely.
 export const TESTERS: Tester[] = [
 	{
-		name: 'AquaChek 7-in-1',
-		description: 'Strips · 7 reads',
+		name: 'Test strips',
+		description: 'Dip strips · 7-in-1 style',
 		icon: 'beaker',
 		measures: ['fc', 'tc', 'ph', 'ta', 'ch', 'cya']
 	},
 	{
-		name: 'Taylor K-2006',
-		description: 'Liquid drops',
+		name: 'Drop test kit',
+		description: 'Liquid reagent drops',
 		icon: 'drop',
 		measures: ['fc', 'tc', 'ph', 'ta', 'ch', 'cya']
 	},
 	// salt itself isn't modelled yet (post-v1) — the meter's thermometer is
 	{ name: 'Salt meter', description: 'Digital · NaCl', icon: 'spark', measures: ['temp'] }
 ];
+
+// pre-rename profiles/tests reference the old brand names — map them through
+const LEGACY_TESTER_NAMES: Record<string, string> = {
+	'AquaChek 7-in-1': 'Test strips',
+	'Taylor K-2006': 'Drop test kit'
+};
+
+function canonicalTesterName(testerName: string): string {
+	return LEGACY_TESTER_NAMES[testerName] ?? testerName;
+}
 
 export const ALL_READING_KEYS: ReadingKey[] = ['ph', 'fc', 'tc', 'ta', 'ch', 'cya', 'temp'];
 
@@ -52,11 +66,13 @@ export function resolveTesterMeasures(
 ): ReadingKey[] {
 	const stored = storedTesters.find((tester) => tester.name === testerName);
 	if (stored && stored.measures.length > 0) return stored.measures;
-	const catalogue = TESTERS.find((tester) => tester.name === testerName);
+	const canonicalName = canonicalTesterName(testerName);
+	const catalogue = TESTERS.find((tester) => tester.name === canonicalName);
 	return catalogue?.measures ?? ALL_READING_KEYS;
 }
 
 /** catalogue icon for known names; custom kits get the beaker */
 export function testerIcon(testerName: string): IconName {
-	return TESTERS.find((tester) => tester.name === testerName)?.icon ?? 'beaker';
+	const canonicalName = canonicalTesterName(testerName);
+	return TESTERS.find((tester) => tester.name === canonicalName)?.icon ?? 'beaker';
 }

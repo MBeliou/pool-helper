@@ -32,7 +32,7 @@ const DEMO_BASE_PROFILE: ProfileValues = {
 	filter: 'Sand',
 	unitsPreset: 'Metric (most of world)',
 	temperatureUnit: '°C',
-	tester: 'AquaChek 7-in-1',
+	tester: 'Test strips',
 	testerSetupDone: true, // scenarios skip the first-visit tester setup
 	reminderDays: 3,
 	disclaimerAcceptedAt: null
@@ -52,7 +52,7 @@ function toTestRows(
 	history: HistoryRow[],
 	options?: { tester?: string; unit?: 'ppm' | '°fH'; hour?: number }
 ): NewTestRow[] {
-	const { tester = 'AquaChek 7-in-1', unit = 'ppm', hour = 8 } = options ?? {};
+	const { tester = 'Test strips', unit = 'ppm', hour = 8 } = options ?? {};
 	return history.map(
 		([
 			daysAgo,
@@ -106,7 +106,7 @@ export async function wipeAllData(): Promise<void> {
 export async function seedSingleTest(): Promise<void> {
 	await database.insert(testsTable).values({
 		testedAt: new Date(),
-		tester: 'AquaChek 7-in-1',
+		tester: 'Test strips',
 		ph: 7.4,
 		freeChlorine: 3.0,
 		totalAlkalinity: 90,
@@ -292,7 +292,7 @@ export async function seedProblemPool(): Promise<void> {
  */
 export async function seedBalancedPool(): Promise<void> {
 	await clearLoggedData();
-	await writeDemoProfile({ hardnessUnit: '°fH', tester: 'Taylor K-2006', volume: 50_000 });
+	await writeDemoProfile({ hardnessUnit: '°fH', tester: 'Drop test kit', volume: 50_000 });
 	// (ta/ch in °fH — French kit)
 	const history: HistoryRow[] = [
 		[21, 7.4, 3.1, 10.2, 25.2, 41, 25],
@@ -306,7 +306,7 @@ export async function seedBalancedPool(): Promise<void> {
 	];
 	await database
 		.insert(testsTable)
-		.values(toTestRows(history, { tester: 'Taylor K-2006', unit: '°fH', hour: 9 }));
+		.values(toTestRows(history, { tester: 'Drop test kit', unit: '°fH', hour: 9 }));
 	await database
 		.insert(actionsTable)
 		.values([

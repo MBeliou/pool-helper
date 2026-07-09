@@ -43,7 +43,7 @@ class AppState {
 	hardnessUnit = $state<HardnessUnit>('°fH');
 	temperatureUnit = $state<TemperatureUnit>('°C');
 	// log flow
-	tester = $state('AquaChek 7-in-1');
+	tester = $state('Test strips');
 	testerSetupDone = $state(false);
 	reminderDays = $state(3);
 	disclaimerAcceptedAt = $state<Date | null>(null);

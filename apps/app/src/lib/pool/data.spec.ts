@@ -3,14 +3,21 @@ import { ALL_READING_KEYS, TESTERS, resolveTesterMeasures, testerIcon } from './
 
 describe('resolveTesterMeasures', () => {
 	it('prefers the stored tester over the catalogue', () => {
-		const stored = [{ name: 'AquaChek 7-in-1', measures: ['ph' as const] }];
-		expect(resolveTesterMeasures('AquaChek 7-in-1', stored)).toEqual(['ph']);
+		const stored = [{ name: 'Test strips', measures: ['ph' as const] }];
+		expect(resolveTesterMeasures('Test strips', stored)).toEqual(['ph']);
 	});
 
 	it('falls back to the catalogue for known names', () => {
-		expect(resolveTesterMeasures('Taylor K-2006', [])).toEqual(
-			TESTERS.find((tester) => tester.name === 'Taylor K-2006')?.measures
+		expect(resolveTesterMeasures('Drop test kit', [])).toEqual(
+			TESTERS.find((tester) => tester.name === 'Drop test kit')?.measures
 		);
+	});
+
+	it('maps legacy brand names to their generic replacements', () => {
+		expect(resolveTesterMeasures('AquaChek 7-in-1', [])).toEqual(
+			TESTERS.find((tester) => tester.name === 'Test strips')?.measures
+		);
+		expect(testerIcon('Taylor K-2006')).toBe('drop');
 	});
 
 	it('unknown names never lose fields (all keys)', () => {

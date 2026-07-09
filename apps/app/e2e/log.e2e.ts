@@ -7,7 +7,7 @@ test('logging a test (with a comma decimal) persists and shows in the journal', 
 	await completeOnboarding(page);
 
 	await page.goto('/log/entry');
-	// rows follow the tester's panel order (AquaChek: fc, tc, ph, …)
+	// rows follow the tester's panel order (Test strips: fc, tc, ph, …)
 	// pH entered with a French comma — must persist as 7.4, not 7 (the bug we fixed)
 	await page.locator('#reading-2').fill('7,4'); // pH
 	await page.locator('#reading-0').fill('3'); // free chlorine
@@ -16,7 +16,7 @@ test('logging a test (with a comma decimal) persists and shows in the journal', 
 
 	// first /log visit asks which testers the user owns — pick one and confirm
 	await page.goto('/log');
-	await page.getByRole('button', { name: /AquaChek 7-in-1/ }).click();
+	await page.getByRole('button', { name: /Test strips/ }).click();
 	await page.getByRole('button', { name: 'Save my testers →' }).click();
 
 	// the journal now has a test entry (no longer empty)
@@ -34,7 +34,7 @@ test('an out-of-range reading produces a fix-plan action (dosing pipeline)', asy
 	await completeOnboarding(page);
 
 	await page.goto('/log/entry');
-	await page.locator('#reading-0').fill('0.2'); // very low free chlorine (first AquaChek row)
+	await page.locator('#reading-0').fill('0.2'); // very low free chlorine (first strip-panel row)
 	await page.getByRole('button', { name: /save/i }).click();
 
 	await expect(page).toHaveURL(/\/results/);
