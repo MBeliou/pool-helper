@@ -53,7 +53,14 @@ ASC: `yearly_sub` $29.99 + 3-day trial, `lifetime_pro` $59.99). One-time Xcode s
 ### Deep links (screenshot automation)
 
 The app registers a `mypool://` URL scheme (`Info.plist` + `src/lib/pool/native/deepLinks.ts`):
-`mypool://go/<route>` navigates; `mypool://seed/problem` (DEV only) onboards + loads demo data.
+
+- `mypool://go/<route>` — navigate the router (e.g. `go/results`, `go/care/diagnose/1`).
+- `mypool://seed/problem` · `seed/balanced` — (DEV only) load a demo profile + history, land home.
+- `mypool://seed/<scenario>` — (DEV only) guidance-engine scenarios from
+  `src/lib/pool/db/demoScenarios.ts`, one per canonical `engine.spec.ts` case:
+  `cya-zero`, `high-ta`, `corrosive`, `bromine-low`, `swg-nudge`, `safety-floor`.
+
+Try one on a booted simulator: `xcrun simctl openurl booted "mypool://seed/high-ta"`.
 After changing the scheme or handler, run `pnpm cap sync` and rebuild (`pnpm cap:dev`).
 
 - **Screens** (routes, headlines, subheads): `screens.ts`.
