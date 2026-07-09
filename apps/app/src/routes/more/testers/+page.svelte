@@ -126,14 +126,14 @@
 			<!-- add a tester: name it and pick what it reads -->
 			<button
 				onclick={() => (addSheetOpen = true)}
-				style="background:transparent;border-radius:18px;border:2px dashed {palette.inkMuted}66;padding:14px 13px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;color:{palette.inkMuted};min-height:116px;"
+				style="background:{palette.accent}0d;border-radius:18px;border:2px dashed {palette.accent}88;padding:14px 13px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;color:{palette.accent};min-height:96px;"
 			>
 				<div
-					style="width:38px;height:38px;border-radius:999px;border:2px solid {palette.inkMuted}66;display:grid;place-items:center;"
+					style="width:38px;height:38px;border-radius:999px;background:{palette.accent}17;display:grid;place-items:center;"
 				>
-					<Icon name="plus" size={20} strokeWidth={2} />
+					<Icon name="plus" size={20} strokeWidth={2.2} />
 				</div>
-				<span style="font-size:13px;font-weight:600;">Add a tester</span>
+				<span style="font-size:13px;font-weight:700;">Add a tester</span>
 			</button>
 		</div>
 	</div>

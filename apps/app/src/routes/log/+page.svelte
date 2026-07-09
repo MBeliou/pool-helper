@@ -217,9 +217,9 @@
 			{:else}
 				<button
 					onclick={() => (customFormOpen = true)}
-					style="width:100%;background:transparent;border-radius:16px;border:2px dashed {palette.inkMuted}66;padding:14px;display:flex;justify-content:center;align-items:center;gap:8px;color:{palette.inkMuted};font-family:var(--font-sans);font-weight:600;font-size:14px;margin-bottom:16px;"
+					style="width:100%;background:{palette.accent}0d;border-radius:16px;border:2px dashed {palette.accent}88;padding:14px;display:flex;justify-content:center;align-items:center;gap:8px;color:{palette.accent};font-family:var(--font-sans);font-weight:700;font-size:14px;margin-bottom:16px;"
 				>
-					<Icon name="plus" size={17} strokeWidth={2} />Create your own tester
+					<Icon name="plus" size={17} strokeWidth={2.2} />Create your own tester
 				</button>
 			{/if}
 			<button
