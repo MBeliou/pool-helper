@@ -85,14 +85,7 @@
 </script>
 
 <div class="screen" style="background:{palette.page};">
-	<NavHeader title={trend?.label ?? parameter.shortLabel} sub={subtitle}>
-		{#snippet right()}
-			<span
-				style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:7px 11px;border-radius:999px;"
-				>{selectedRange}</span
-			>
-		{/snippet}
-	</NavHeader>
+	<NavHeader title={trend?.label ?? parameter.shortLabel} sub={subtitle} />
 	<div class="scroll" style="padding:14px 16px 0;">
 		<!-- range segmented (shared with the trends list) -->
 		<RangeSelector selected={selectedRange} onpick={(label) => pickRange(label)} />

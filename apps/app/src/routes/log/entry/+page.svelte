@@ -3,12 +3,11 @@
 	import { goto } from '$app/navigation';
 	import { theme } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
-	import { formatReading, parameterByKey, type ParameterKey } from '$lib/pool/chemistry';
-	import { TESTERS, type ReadingKey } from '$lib/pool/data';
+	import { resolveTesterMeasures, type ReadingKey } from '$lib/pool/data';
+	import { listTesters, type StoredTester } from '$lib/pool/db/testersRepository';
 	import {
 		HARDNESS_UNITS,
 		TEMPERATURE_UNITS,
-		temperatureFromCelsius,
 		temperatureToCelsius,
 		type HardnessUnit,
 		type TemperatureUnit
@@ -31,22 +30,19 @@
 		value: string;
 		unit: string;
 		unitOptions?: readonly string[];
-		/** previous reading shown as a placeholder — blanks stay genuinely unset */
-		lastText: string;
 		/** one-line explainer under the label */
 		hint?: string;
 	}
 
 	let readings = $state<EntryRow[]>([
-		{ key: 'ph', label: 'pH', abbreviation: '', value: '', unit: '', lastText: '' },
-		{ key: 'fc', label: 'Free chlorine', abbreviation: 'FC', value: '', unit: 'ppm', lastText: '' },
+		{ key: 'ph', label: 'pH', abbreviation: '', value: '', unit: '' },
+		{ key: 'fc', label: 'Free chlorine', abbreviation: 'FC', value: '', unit: 'ppm' },
 		{
 			key: 'tc',
 			label: 'Total chlorine',
 			abbreviation: 'TC',
 			value: '',
 			unit: 'ppm',
-			lastText: '',
 			hint: 'Free protects you now; total also counts used-up chlorine'
 		},
 		{
@@ -55,8 +51,7 @@
 			abbreviation: 'TA',
 			value: '',
 			unit: 'ppm',
-			unitOptions: HARDNESS_UNITS,
-			lastText: ''
+			unitOptions: HARDNESS_UNITS
 		},
 		{
 			key: 'ch',
@@ -64,16 +59,14 @@
 			abbreviation: 'CH',
 			value: '',
 			unit: 'ppm',
-			unitOptions: HARDNESS_UNITS,
-			lastText: ''
+			unitOptions: HARDNESS_UNITS
 		},
 		{
 			key: 'cya',
 			label: 'Cyanuric acid',
 			abbreviation: 'CYA',
 			value: '',
-			unit: 'ppm',
-			lastText: ''
+			unit: 'ppm'
 		},
 		{
 			key: 'temp',
@@ -81,8 +74,7 @@
 			abbreviation: '',
 			value: '',
 			unit: '°C',
-			unitOptions: TEMPERATURE_UNITS,
-			lastText: ''
+			unitOptions: TEMPERATURE_UNITS
 		}
 	]);
 
@@ -91,10 +83,8 @@
 	}
 
 	// the selected tester's readings first (its order), the rest below the divider
-	const measuredKeys = $derived(
-		TESTERS.find((tester) => tester.name === app.tester)?.measures ??
-			readings.map((reading) => reading.key)
-	);
+	let storedTesters = $state<StoredTester[]>([]);
+	const measuredKeys = $derived(resolveTesterMeasures(app.tester, storedTesters));
 	const measuredRows = $derived(measuredKeys.map((key) => rowByKey(key)));
 	const extraRows = $derived(readings.filter((reading) => !measuredKeys.includes(reading.key)));
 
@@ -105,6 +95,7 @@
 
 	onMount(async () => {
 		await app.load();
+		storedTesters = await listTesters();
 		const taReading = rowByKey('ta');
 		const chReading = rowByKey('ch');
 		const tempReading = rowByKey('temp');
@@ -113,30 +104,10 @@
 		tempReading.unit = app.temperatureUnit;
 		const latestTest = await getLatestTest();
 		if (!latestTest) return;
-		// previous readings become PLACEHOLDERS, not values — an untouched field
-		// saves as "not measured", which is what a blank means (temp especially).
-		// TA/CH keep the unit they were recorded in; temp shows the display unit.
-		const rawValues: Record<ReadingKey, number | null> = {
-			ph: latestTest.ph,
-			fc: latestTest.freeChlorine,
-			tc: latestTest.totalChlorine,
-			ta: latestTest.totalAlkalinity,
-			ch: latestTest.calciumHardness,
-			cya: latestTest.cyanuricAcid,
-			temp:
-				latestTest.temperature === null
-					? null
-					: temperatureFromCelsius(latestTest.temperature, tempReading.unit as TemperatureUnit)
-		};
+		// fields start empty — a blank saves as "not measured". Only the TA/CH
+		// units carry over from the previous test (a kit preference, not a value).
 		taReading.unit = latestTest.totalAlkalinityUnit;
 		chReading.unit = latestTest.calciumHardnessUnit;
-		for (const reading of readings) {
-			const rawValue = rawValues[reading.key];
-			if (rawValue === null) continue;
-			const decimals =
-				reading.key === 'tc' ? 1 : parameterByKey[reading.key as ParameterKey].decimals;
-			reading.lastText = formatReading(rawValue, decimals);
-		}
 		const hours = hoursSince(latestTest.testedAt);
 		if (hours < 24) recentTestHours = Math.max(1, Math.round(hours));
 	});
@@ -231,7 +202,7 @@
 				type="text"
 				inputmode="decimal"
 				enterkeyhint="next"
-				placeholder={reading.lastText ? `last: ${reading.lastText}` : '—'}
+				placeholder="—"
 				bind:this={inputElements[rowIndex]}
 				bind:value={() => reading.value, (newValue) => (reading.value = sanitizeValue(newValue))}
 				onfocus={() => (focusedIndex = rowIndex)}

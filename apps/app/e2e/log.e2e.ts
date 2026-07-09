@@ -14,8 +14,12 @@ test('logging a test (with a comma decimal) persists and shows in the journal', 
 	await page.getByRole('button', { name: /save/i }).click();
 	await expect(page).toHaveURL(/\/results/);
 
-	// the journal now has a test entry (no longer empty)
+	// first /log visit asks which testers the user owns — pick one and confirm
 	await page.goto('/log');
+	await page.getByRole('button', { name: /AquaChek 7-in-1/ }).click();
+	await page.getByRole('button', { name: 'Save my testers →' }).click();
+
+	// the journal now has a test entry (no longer empty)
 	await expect(page.getByText('Nothing logged yet')).toHaveCount(0);
 	const testEntry = page.locator('a[href^="/log/test"]').first();
 	await expect(testEntry).toBeVisible();

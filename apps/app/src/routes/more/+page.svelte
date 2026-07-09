@@ -10,6 +10,7 @@
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import ComingSoonSheet from '$lib/pool/components/ComingSoonSheet.svelte';
 	import { countTests } from '$lib/pool/db/testsRepository';
+	import { listTesters } from '$lib/pool/db/testersRepository';
 	import {
 		GUIDANCE_SCENARIOS,
 		clearLoggedData,
@@ -26,12 +27,15 @@
 	const palette = $derived(theme.palette);
 
 	let testCount = $state(0);
+	let testerCount = $state(TESTERS.length);
 	let seedStatus = $state('');
 	let addPoolSheetOpen = $state(false);
 
 	onMount(async () => {
 		await app.load();
 		testCount = await countTests();
+		const storedTesters = await listTesters();
+		if (storedTesters.length > 0) testerCount = storedTesters.length;
 	});
 
 	const volumeUnitShort: Record<string, string> = { litres: 'L' }; // others are short already
@@ -59,7 +63,7 @@
 				{ title: 'Pool profile', subtitle: profileSummary, href: '/more/profile' },
 				{
 					title: 'My testers',
-					subtitle: `${TESTERS.length} saved · using ${app.tester}`,
+					subtitle: `${testerCount} saved · using ${app.tester}`,
 					href: '/more/testers'
 				},
 				{

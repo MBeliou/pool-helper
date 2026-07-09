@@ -10,9 +10,44 @@
 	import { listTests } from '$lib/pool/db/testsRepository';
 	import { insertAction, listActions } from '$lib/pool/db/actionsRepository';
 	import { listIssues } from '$lib/pool/db/issuesRepository';
+	import { insertTester, listTesters, type StoredTester } from '$lib/pool/db/testersRepository';
+	import { TESTERS } from '$lib/pool/data';
+	import TesterForm from '$lib/pool/components/TesterForm.svelte';
 	import type { TestRow } from '$lib/pool/db/schema';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	const palette = $derived(theme.palette);
+
+	// ── first-visit tester setup — replaces the journal until confirmed ──
+	let storedTesters = $state<StoredTester[]>([]);
+	const pickedCatalogue = new SvelteSet<string>();
+	let customFormOpen = $state(false);
+
+	const canConfirmSetup = $derived(pickedCatalogue.size > 0 || storedTesters.length > 0);
+
+	function toggleCatalogueTester(testerName: string) {
+		if (pickedCatalogue.has(testerName)) pickedCatalogue.delete(testerName);
+		else pickedCatalogue.add(testerName);
+	}
+
+	async function onCustomTesterSaved() {
+		customFormOpen = false;
+		storedTesters = await listTesters();
+	}
+
+	async function confirmTesterSetup() {
+		if (!canConfirmSetup) return;
+		// picked catalogue kits become rows too — one list, one source of truth
+		for (const catalogueTester of TESTERS) {
+			if (pickedCatalogue.has(catalogueTester.name)) {
+				await insertTester(catalogueTester.name, catalogueTester.measures);
+			}
+		}
+		storedTesters = await listTesters();
+		app.tester = storedTesters[0]?.name ?? app.tester;
+		app.testerSetupDone = true;
+		await app.save();
+	}
 
 	interface JournalEntry {
 		kind: 'test' | 'action';
@@ -63,6 +98,7 @@
 
 	onMount(async () => {
 		await app.load();
+		storedTesters = await listTesters();
 		await refreshJournal();
 	});
 
@@ -93,100 +129,182 @@
 </script>
 
 <div class="screen" style="background:{palette.page};">
-	<NavHeader large title="Log" sub="Tests and actions on your pool" />
-	<div class="scroll" style="padding:16px 18px 16px;">
-		<!-- log new results CTA -->
-		<a
-			href="/log/new"
-			style="display:flex;align-items:center;gap:13px;background:{palette.accent};border-radius:18px;padding:15px 16px;margin-bottom:10px;"
-		>
-			<div
-				style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:grid;place-items:center;color:#fff;flex-shrink:0;"
-			>
-				<Icon name="beaker" size={22} strokeWidth={1.8} />
+	<NavHeader
+		large
+		title="Log"
+		sub={loaded && !app.testerSetupDone
+			? 'First, tell us what you test with'
+			: 'Tests and actions on your pool'}
+	/>
+	{#if loaded && !app.testerSetupDone}
+		<!-- first visit: which testers does the user own? (incl. custom kits) -->
+		<div class="scroll" style="padding:16px 18px 16px;">
+			<div style="font-size:14px;color:{palette.inkMuted};line-height:1.4;margin-bottom:14px;">
+				Pick the kits you own — the test form will show exactly what each one reads.
 			</div>
-			<div style="flex:1;">
-				<div style="font-weight:800;font-size:16px;color:#fff;">Log new results</div>
-				<div style="font-size:12.5px;color:rgba(255,255,255,.85);">Strips, drops or meter</div>
-			</div>
-			<Icon name="plus" size={22} color="#fff" strokeWidth={2.2} />
-		</a>
-		<!-- add an action -->
-		<button
-			onclick={() => (sheetOpen = true)}
-			style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:{palette.card};border:none;border-radius:15px;padding:13px;box-shadow:{palette.shadow};font-family:var(--font-sans);font-weight:700;font-size:14px;color:{palette.ink};margin-bottom:20px;"
-		>
-			<Icon name="spark" size={17} color={palette.accent} strokeWidth={1.9} />Add an action
-		</button>
-
-		{#each groupedByDay as group (group.label)}
-			<div
-				style="font-size:11.5px;color:{palette.inkMuted};text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin:14px 2px 8px;"
-			>
-				{group.label}
-			</div>
-			<div style="display:flex;flex-direction:column;gap:9px;">
-				{#each group.entries as entry (entry.kind + '-' + (entry.testId ?? entry.at.getTime()))}
-					{#if entry.kind === 'test'}
-						<a
-							href="/log/test?id={entry.testId}"
-							style="display:flex;align-items:center;gap:12px;background:{palette.card};border-radius:16px;padding:12px 14px;box-shadow:{palette.shadow};"
-						>
-							<div
-								style="width:38px;height:38px;border-radius:11px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};flex-shrink:0;"
+			<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+				{#each TESTERS as catalogueTester (catalogueTester.name)}
+					{@const picked = pickedCatalogue.has(catalogueTester.name)}
+					<button
+						onclick={() => toggleCatalogueTester(catalogueTester.name)}
+						aria-pressed={picked}
+						style="text-align:left;background:{palette.card};border-radius:18px;padding:14px 13px 15px;box-shadow:{palette.shadow};border:2px solid {picked
+							? palette.accent
+							: 'transparent'};position:relative;"
+					>
+						{#if picked}
+							<span
+								style="position:absolute;top:11px;right:11px;width:20px;height:20px;border-radius:999px;background:{palette.accent};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;"
+								>✓</span
 							>
-								<Icon name="beaker" size={19} strokeWidth={1.8} />
-							</div>
-							<div style="flex:1;min-width:0;">
-								<div style="font-weight:700;font-size:14.5px;color:{palette.ink};">
-									{entry.title}
-								</div>
-								<div
-									style="font-size:12px;color:{palette.inkMuted};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-								>
-									{entry.summary}
-								</div>
-							</div>
-							<span style="font-size:11.5px;color:{palette.inkMuted};flex-shrink:0;"
-								>{formatTimeCompact(entry.at)}</span
-							>
-							<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
-						</a>
-					{:else}
+						{/if}
 						<div
-							style="display:flex;align-items:center;gap:12px;background:{palette.card};border-radius:16px;padding:12px 14px;box-shadow:{palette.shadow};"
+							style="width:42px;height:42px;border-radius:13px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};margin-bottom:12px;"
 						>
-							<div
-								style="width:38px;height:38px;border-radius:11px;background:{palette.status
-									.ok}17;display:grid;place-items:center;color:{palette.status.ok};flex-shrink:0;"
-							>
-								<Icon name="check" size={19} strokeWidth={1.8} />
-							</div>
-							<div style="flex:1;min-width:0;">
-								<div style="font-weight:700;font-size:14.5px;color:{palette.ink};">
-									{entry.title}
-								</div>
-								<div style="font-size:12px;color:{palette.inkMuted};margin-top:1px;">
-									{entry.summary}
-								</div>
-							</div>
-							<span style="font-size:11.5px;color:{palette.inkMuted};flex-shrink:0;"
-								>{formatTimeCompact(entry.at)}</span
-							>
+							<Icon name={catalogueTester.icon} size={22} strokeWidth={1.8} />
 						</div>
-					{/if}
+						<div style="font-weight:700;font-size:15px;color:{palette.ink};line-height:1.15;">
+							{catalogueTester.name}
+						</div>
+						<div style="font-size:12px;color:{palette.inkMuted};margin-top:2px;">
+							{catalogueTester.description}
+						</div>
+					</button>
 				{/each}
 			</div>
-		{/each}
-		{#if loaded && entries.length === 0}
-			<div
-				style="background:{palette.card};border-radius:16px;padding:18px 15px;box-shadow:{palette.shadow};text-align:center;font-size:14px;color:{palette.inkMuted};"
+			{#each storedTesters as stored (stored.id)}
+				<div
+					style="display:flex;align-items:center;gap:11px;background:{palette.card};border-radius:14px;padding:12px 14px;box-shadow:{palette.shadow};margin-bottom:10px;"
+				>
+					<div style="color:{palette.accent};">
+						<Icon name="beaker" size={18} strokeWidth={1.8} />
+					</div>
+					<div style="flex:1;font-weight:700;font-size:14px;color:{palette.ink};">
+						{stored.name}
+					</div>
+					<span style="font-size:12px;color:{palette.inkMuted};"
+						>{stored.measures.length} readings</span
+					>
+				</div>
+			{/each}
+			{#if customFormOpen}
+				<div
+					style="background:{palette.card};border-radius:18px;padding:16px 15px;box-shadow:{palette.shadow};margin-bottom:16px;"
+				>
+					<TesterForm onsaved={onCustomTesterSaved} oncancel={() => (customFormOpen = false)} />
+				</div>
+			{:else}
+				<button
+					onclick={() => (customFormOpen = true)}
+					style="width:100%;background:transparent;border-radius:16px;border:2px dashed {palette.inkMuted}66;padding:14px;display:flex;justify-content:center;align-items:center;gap:8px;color:{palette.inkMuted};font-family:var(--font-sans);font-weight:600;font-size:14px;margin-bottom:16px;"
+				>
+					<Icon name="plus" size={17} strokeWidth={2} />Create your own tester
+				</button>
+			{/if}
+			<button
+				onclick={confirmTesterSetup}
+				disabled={!canConfirmSetup}
+				style="width:100%;background:{palette.accent};color:#fff;text-align:center;padding:15px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;opacity:{canConfirmSetup
+					? 1
+					: 0.5};">Save my testers →</button
 			>
-				Nothing logged yet — run your first test or note an action.
-			</div>
-		{/if}
-	</div>
-	<TabBar />
+		</div>
+		<TabBar />
+	{:else}
+		<div class="scroll" style="padding:16px 18px 16px;">
+			<!-- log new results CTA -->
+			<a
+				href="/log/new"
+				style="display:flex;align-items:center;gap:13px;background:{palette.accent};border-radius:18px;padding:15px 16px;margin-bottom:10px;"
+			>
+				<div
+					style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.2);display:grid;place-items:center;color:#fff;flex-shrink:0;"
+				>
+					<Icon name="beaker" size={22} strokeWidth={1.8} />
+				</div>
+				<div style="flex:1;">
+					<div style="font-weight:800;font-size:16px;color:#fff;">Log new results</div>
+					<div style="font-size:12.5px;color:rgba(255,255,255,.85);">Strips, drops or meter</div>
+				</div>
+				<Icon name="plus" size={22} color="#fff" strokeWidth={2.2} />
+			</a>
+			<!-- add an action -->
+			<button
+				onclick={() => (sheetOpen = true)}
+				style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:{palette.card};border:none;border-radius:15px;padding:13px;box-shadow:{palette.shadow};font-family:var(--font-sans);font-weight:700;font-size:14px;color:{palette.ink};margin-bottom:20px;"
+			>
+				<Icon name="spark" size={17} color={palette.accent} strokeWidth={1.9} />Add an action
+			</button>
+
+			{#each groupedByDay as group (group.label)}
+				<div
+					style="font-size:11.5px;color:{palette.inkMuted};text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin:14px 2px 8px;"
+				>
+					{group.label}
+				</div>
+				<div style="display:flex;flex-direction:column;gap:9px;">
+					{#each group.entries as entry (entry.kind + '-' + (entry.testId ?? entry.at.getTime()))}
+						{#if entry.kind === 'test'}
+							<a
+								href="/log/test?id={entry.testId}"
+								style="display:flex;align-items:center;gap:12px;background:{palette.card};border-radius:16px;padding:12px 14px;box-shadow:{palette.shadow};"
+							>
+								<div
+									style="width:38px;height:38px;border-radius:11px;background:{palette.accent}17;display:grid;place-items:center;color:{palette.accent};flex-shrink:0;"
+								>
+									<Icon name="beaker" size={19} strokeWidth={1.8} />
+								</div>
+								<div style="flex:1;min-width:0;">
+									<div style="font-weight:700;font-size:14.5px;color:{palette.ink};">
+										{entry.title}
+									</div>
+									<div
+										style="font-size:12px;color:{palette.inkMuted};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+									>
+										{entry.summary}
+									</div>
+								</div>
+								<span style="font-size:11.5px;color:{palette.inkMuted};flex-shrink:0;"
+									>{formatTimeCompact(entry.at)}</span
+								>
+								<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
+							</a>
+						{:else}
+							<div
+								style="display:flex;align-items:center;gap:12px;background:{palette.card};border-radius:16px;padding:12px 14px;box-shadow:{palette.shadow};"
+							>
+								<div
+									style="width:38px;height:38px;border-radius:11px;background:{palette.status
+										.ok}17;display:grid;place-items:center;color:{palette.status.ok};flex-shrink:0;"
+								>
+									<Icon name="check" size={19} strokeWidth={1.8} />
+								</div>
+								<div style="flex:1;min-width:0;">
+									<div style="font-weight:700;font-size:14.5px;color:{palette.ink};">
+										{entry.title}
+									</div>
+									<div style="font-size:12px;color:{palette.inkMuted};margin-top:1px;">
+										{entry.summary}
+									</div>
+								</div>
+								<span style="font-size:11.5px;color:{palette.inkMuted};flex-shrink:0;"
+									>{formatTimeCompact(entry.at)}</span
+								>
+							</div>
+						{/if}
+					{/each}
+				</div>
+			{/each}
+			{#if loaded && entries.length === 0}
+				<div
+					style="background:{palette.card};border-radius:16px;padding:18px 15px;box-shadow:{palette.shadow};text-align:center;font-size:14px;color:{palette.inkMuted};"
+				>
+					Nothing logged yet — run your first test or note an action.
+				</div>
+			{/if}
+		</div>
+		<TabBar />
+	{/if}
 
 	{#if sheetOpen}
 		<!-- scrim -->

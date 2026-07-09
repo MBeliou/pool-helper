@@ -85,6 +85,13 @@
 			"when": 1783601363045,
 			"tag": "0011_total_chlorine",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "6",
+			"when": 1783604103214,
+			"tag": "0012_custom_testers",
+			"breakpoints": true
 		}
 	]
 }

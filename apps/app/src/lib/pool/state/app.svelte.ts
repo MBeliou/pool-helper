@@ -44,6 +44,7 @@ class AppState {
 	temperatureUnit = $state<TemperatureUnit>('°C');
 	// log flow
 	tester = $state('AquaChek 7-in-1');
+	testerSetupDone = $state(false);
 	reminderDays = $state(3);
 	disclaimerAcceptedAt = $state<Date | null>(null);
 
@@ -120,6 +121,7 @@ class AppState {
 		this.hardnessUnit = profile.hardnessUnit as HardnessUnit;
 		this.temperatureUnit = profile.temperatureUnit as TemperatureUnit;
 		this.tester = profile.tester;
+		this.testerSetupDone = profile.testerSetupDone;
 		this.reminderDays = profile.reminderDays;
 		this.disclaimerAcceptedAt = profile.disclaimerAcceptedAt;
 	}
@@ -140,6 +142,7 @@ class AppState {
 			hardnessUnit: this.hardnessUnit,
 			temperatureUnit: this.temperatureUnit,
 			tester: this.tester,
+			testerSetupDone: this.testerSetupDone,
 			reminderDays: this.reminderDays,
 			disclaimerAcceptedAt: this.disclaimerAcceptedAt
 		};

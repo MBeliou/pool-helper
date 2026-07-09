@@ -21,6 +21,7 @@ export interface ProfileValues {
 	hardnessUnit: HardnessUnit;
 	temperatureUnit: TemperatureUnit;
 	tester: string;
+	testerSetupDone: boolean;
 	reminderDays: number;
 	disclaimerAcceptedAt: Date | null;
 }
@@ -48,6 +49,7 @@ export async function loadProfile(): Promise<ProfileValues | undefined> {
 		hardnessUnit: profileRow.hardnessUnit,
 		temperatureUnit: profileRow.temperatureUnit,
 		tester: profileRow.tester,
+		testerSetupDone: profileRow.testerSetupDone,
 		reminderDays: profileRow.reminderDays,
 		disclaimerAcceptedAt: profileRow.disclaimerAcceptedAt
 	};
@@ -70,6 +72,7 @@ export async function saveProfile(profileValues: ProfileValues): Promise<void> {
 		hardnessUnit: profileValues.hardnessUnit,
 		temperatureUnit: profileValues.temperatureUnit,
 		tester: profileValues.tester,
+		testerSetupDone: profileValues.testerSetupDone,
 		reminderDays: profileValues.reminderDays,
 		disclaimerAcceptedAt: profileValues.disclaimerAcceptedAt
 	};

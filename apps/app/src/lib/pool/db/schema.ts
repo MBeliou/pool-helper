@@ -22,9 +22,20 @@ export const profileTable = sqliteTable('profile', {
 	hardnessUnit: text('hardness_unit', { enum: HARDNESS_UNITS }).notNull(),
 	temperatureUnit: text('temperature_unit', { enum: TEMPERATURE_UNITS }).notNull(),
 	tester: text('tester').notNull(),
+	// first /log visit asks which testers the user owns (incl. custom ones)
+	testerSetupDone: integer('tester_setup_done', { mode: 'boolean' }).notNull().default(false),
 	reminderDays: integer('reminder_days').notNull().default(3),
 	// when the user acknowledged the dosing disclaimer (null = not yet)
 	disclaimerAcceptedAt: integer('disclaimer_accepted_at', { mode: 'timestamp_ms' })
+});
+
+// The user's testers (picked from the catalogue at setup, or custom-built).
+// `measures` is a JSON ReadingKey[] — what the kit can record, in panel order.
+export const testersTable = sqliteTable('testers', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	name: text('name').notNull(),
+	measures: text('measures').notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull()
 });
 
 // One row per logged water test; blank readings stay null.
@@ -124,3 +135,5 @@ export type ActionRow = typeof actionsTable.$inferSelect;
 export type NewActionRow = typeof actionsTable.$inferInsert;
 export type DiagnosisRow = typeof diagnosesTable.$inferSelect;
 export type NewDiagnosisRow = typeof diagnosesTable.$inferInsert;
+export type TesterRow = typeof testersTable.$inferSelect;
+export type NewTesterRow = typeof testersTable.$inferInsert;

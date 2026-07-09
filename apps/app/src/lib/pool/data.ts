@@ -30,3 +30,33 @@ export const TESTERS: Tester[] = [
 ];
 
 export const ALL_READING_KEYS: ReadingKey[] = ['ph', 'fc', 'tc', 'ta', 'ch', 'cya', 'temp'];
+
+/** short labels for the tester-form checkboxes and tester descriptions */
+export const READING_LABELS: Record<ReadingKey, string> = {
+	ph: 'pH',
+	fc: 'Free chlorine',
+	tc: 'Total chlorine',
+	ta: 'Alkalinity',
+	ch: 'Hardness',
+	cya: 'Stabiliser (CYA)',
+	temp: 'Water temp'
+};
+
+/**
+ * What a tester by this name can record: the user's stored testers win,
+ * then the catalogue, then everything (unknown names never lose fields).
+ */
+export function resolveTesterMeasures(
+	testerName: string,
+	storedTesters: { name: string; measures: ReadingKey[] }[]
+): ReadingKey[] {
+	const stored = storedTesters.find((tester) => tester.name === testerName);
+	if (stored && stored.measures.length > 0) return stored.measures;
+	const catalogue = TESTERS.find((tester) => tester.name === testerName);
+	return catalogue?.measures ?? ALL_READING_KEYS;
+}
+
+/** catalogue icon for known names; custom kits get the beaker */
+export function testerIcon(testerName: string): IconName {
+	return TESTERS.find((tester) => tester.name === testerName)?.icon ?? 'beaker';
+}

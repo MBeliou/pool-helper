@@ -33,6 +33,7 @@ const DEMO_BASE_PROFILE: ProfileValues = {
 	unitsPreset: 'Metric (most of world)',
 	temperatureUnit: '°C',
 	tester: 'AquaChek 7-in-1',
+	testerSetupDone: true, // scenarios skip the first-visit tester setup
 	reminderDays: 3,
 	disclaimerAcceptedAt: null
 };
