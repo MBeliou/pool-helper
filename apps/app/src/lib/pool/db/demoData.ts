@@ -126,6 +126,13 @@ export async function seedProblemPool(): Promise<void> {
 	await writeDemoProfile({ volume: 50_000 });
 
 	const history: HistoryRow[] = [
+		// quiet spring months — makes the 90d/1y trend ranges visibly different
+		[100, 7.2, 3.6, 96, 230, 36, 17],
+		[88, 7.2, 3.5, 97, 232, 36, 18],
+		[76, 7.2, 3.4, 95, 233, 37, 18],
+		[64, 7.3, 3.4, 96, 234, 37, 19],
+		[52, 7.3, 3.3, 94, 234, 38, 20],
+		[40, 7.3, 3.3, 95, 236, 38, 20],
 		[32, 7.3, 3.2, 95, 235, 38, 21],
 		[29, 7.3, 3.0, 92, 238, 39, 22],
 		[26, 7.4, 2.8, 94, 240, 40, 22],

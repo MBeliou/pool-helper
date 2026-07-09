@@ -12,20 +12,25 @@
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import { getTestsSince } from '$lib/pool/db/testsRepository';
+	import { testValue } from '$lib/pool/chemistry';
+	import { guidanceConfigFromProfile } from '$lib/pool/fixPlan';
+	import { derivedParameterDefinitions } from '$lib/pool/guidance/displayBands';
+	import { parameterExplainer } from '$lib/pool/parameterInfo';
 
 	const palette = $derived(theme.palette);
 	const parameterKey = $derived((page.params.param ?? 'ph') as ParameterKey);
 	const parameter = $derived(parameterByKey[parameterKey] ?? parameterByKey.ph);
 
 	// Longer windows are a Pool Doctor Pro feature; free users get the 14-day view.
-	// Enforcement is native-only — the web preview leaves every range unlocked.
+	// Enforcement is native-only — the web preview leaves every range unlocked, and
+	// dev builds too (the paywall can't present on a bare simulator).
 	const ranges: { label: string; days: number; free?: boolean }[] = [
 		{ label: '14d', days: 14, free: true },
 		{ label: '30d', days: 30 },
 		{ label: '90d', days: 90 },
 		{ label: '1y', days: 365 }
 	];
-	const proUnlocked = $derived(billing.isPro || !billing.supported);
+	const proUnlocked = $derived(billing.isPro || !billing.supported || import.meta.env.DEV);
 	let selectedRange = $state('14d');
 	let trend = $state<ParameterTrend | undefined>(undefined);
 	let loaded = $state(false);
@@ -33,12 +38,27 @@
 	async function refreshTrend() {
 		const days = ranges.find((range) => range.label === selectedRange)?.days ?? 14;
 		const tests = await getTestsSince(days);
-		trend = buildTrends(tests, {
-			hardnessUnit: app.hardnessUnit,
-			temperatureUnit: app.temperatureUnit
-		}).find((parameterTrend) => parameterTrend.key === parameter.key);
+		const latestTest = tests.at(-1);
+		// ideal bands follow the profile-derived targets, same as home/trends list
+		trend = buildTrends(
+			tests,
+			{ hardnessUnit: app.hardnessUnit, temperatureUnit: app.temperatureUnit },
+			derivedParameterDefinitions(guidanceConfig, latestTest ? testValue(latestTest, 'cya') : null)
+		).find((parameterTrend) => parameterTrend.key === parameter.key);
 		loaded = true;
 	}
+
+	const guidanceConfig = $derived(
+		guidanceConfigFromProfile({
+			volume: app.volume,
+			volumeUnit: app.volumeUnit,
+			hardnessUnit: app.hardnessUnit,
+			surface: app.surface,
+			sanitiser: app.sanitiser,
+			location: app.location,
+			sunExposure: app.sunExposure
+		})
+	);
 
 	onMount(async () => {
 		await app.load();
@@ -73,22 +93,12 @@
 		return [formatShortDate(first), formatShortDate(middle), formatShortDate(last)];
 	});
 
-	// static educational copy — pipeline territory later
-	const tips: Partial<Record<ParameterKey, { title: string; body: string }>> = {
-		ph: {
-			title: 'Why this happens',
-			body: 'Fresh plaster leaches lime for ~12 months, nudging pH up about 0.1 a week. Expect frequent small acid doses early on — it settles.'
-		},
-		fc: {
-			title: 'Why this happens',
-			body: 'Hot weather and heavy use burn through chlorine faster. Low CYA also lets sunlight strip it — check your stabiliser level.'
-		}
-	};
-	const tip = $derived(tips[parameterKey]);
+	// plain-language "what is this parameter" explainer (parameterInfo.ts)
+	const tip = $derived(parameterExplainer(parameterKey, guidanceConfig.sanitizer));
 </script>
 
 <div class="screen" style="background:{palette.page};">
-	<NavHeader title={parameter.shortLabel} sub={subtitle}>
+	<NavHeader title={trend?.label ?? parameter.shortLabel} sub={subtitle}>
 		{#snippet right()}
 			<span
 				style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:7px 11px;border-radius:999px;"
