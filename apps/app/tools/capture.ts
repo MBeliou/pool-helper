@@ -61,6 +61,8 @@ if (manual) {
 	console.log("Seeding demo data (mypool://seed/problem)…");
 	await openUrl("mypool://seed/problem");
 	await sleep(3000); // onboard + write a month of demo tests/issues + land home
+	await openUrl("mypool://pro/on"); // shots show the paid experience, not upsells
+	await sleep(500);
 
 	for (const [i, s] of SCREENS.entries()) {
 		await openUrl(goUrl(s.route));

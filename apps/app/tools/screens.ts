@@ -27,7 +27,7 @@ export const SCREENS: Screen[] = [
 	},
 	{
 		id: "02-test",
-		route: "/log/test",
+		route: "/log/entry",
 		headline: "Log a test in\nunder a minute",
 		subhead: "Enter strip or kit readings. We flag anything out of range instantly.",
 		callout: "Per-parameter units",

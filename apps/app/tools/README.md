@@ -59,6 +59,8 @@ The app registers a `mypool://` URL scheme (`Info.plist` + `src/lib/pool/native/
 - `mypool://seed/<scenario>` — (DEV only) guidance-engine scenarios from
   `src/lib/pool/db/demoScenarios.ts`, one per canonical `engine.spec.ts` case:
   `cya-zero`, `high-ta`, `corrosive`, `bromine-low`, `swg-nudge`, `safety-floor`.
+- `mypool://pro/on` · `pro/off` — (DEV only) fake the Pro entitlement in-memory so
+  screenshots show the paid experience (capture.ts turns it on after seeding).
 
 Try one on a booted simulator: `xcrun simctl openurl booted "mypool://seed/high-ta"`.
 After changing the scheme or handler, run `pnpm cap sync` and rebuild (`pnpm cap:dev`).

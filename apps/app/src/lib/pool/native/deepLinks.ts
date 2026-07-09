@@ -8,9 +8,12 @@
 //   mypool://seed/<id>      → (DEV only) a guidance-engine scenario from
 //                             demoScenarios.ts (cya-zero, high-ta, corrosive,
 //                             bromine-low, swg-nudge, safety-floor)
+//   mypool://pro/on · off   → (DEV only) fake the Pro entitlement in-memory, so
+//                             screenshots show the paid experience
 import { Capacitor } from '@capacitor/core';
 import { goto } from '$app/navigation';
 import { app } from '$lib/pool/state/app.svelte';
+import { billing } from '$lib/pool/billing/revenuecat.svelte';
 
 const browser = typeof window !== 'undefined';
 const isNative = () => browser && Capacitor.isNativePlatform();
@@ -37,6 +40,12 @@ async function handle(url: string): Promise<void> {
 		else await (slug === 'balanced' ? demo.seedBalancedPool() : demo.seedProblemPool());
 		await app.reloadProfile();
 		await goto('/', { replaceState: true });
+		return;
+	}
+
+	// DEV-only entitlement fake — in-memory only, gone on relaunch
+	if (host === 'pro' && import.meta.env.DEV) {
+		billing.isPro = path.replace(/^\//, '') !== 'off';
 		return;
 	}
 
