@@ -160,7 +160,7 @@
 								style="width:38px;height:38px;border-radius:11px;background:{palette.status
 									.ok}17;display:grid;place-items:center;color:{palette.status.ok};flex-shrink:0;"
 							>
-								<Icon name="spark" size={19} strokeWidth={1.8} />
+								<Icon name="check" size={19} strokeWidth={1.8} />
 							</div>
 							<div style="flex:1;min-width:0;">
 								<div style="font-weight:700;font-size:14.5px;color:{palette.ink};">

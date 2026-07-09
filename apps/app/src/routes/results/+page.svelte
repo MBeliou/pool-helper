@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { theme, statusColor } from '$lib/pool/state/theme.svelte';
 	import { app } from '$lib/pool/state/app.svelte';
@@ -17,7 +16,7 @@
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
 	import { getLatestTest } from '$lib/pool/db/testsRepository';
-	import { insertAction } from '$lib/pool/db/actionsRepository';
+	import { completedPlanParameterKeys, insertAction } from '$lib/pool/db/actionsRepository';
 
 	const palette = $derived(theme.palette);
 
@@ -34,10 +33,13 @@
 	let warnings = $state<string[]>([]);
 	let requestInput = $state<string[]>([]);
 	let loaded = $state(false);
+	// the test this plan derives from — keys the persisted step completions
+	let planTestId = $state<number | null>(null);
 
 	onMount(async () => {
 		await app.load();
 		const latestTest = await getLatestTest();
+		planTestId = latestTest?.id ?? null;
 		const fixPlan = computeFixPlan(latestTest, {
 			volume: app.volume,
 			volumeUnit: app.volumeUnit,
@@ -47,10 +49,14 @@
 			location: app.location,
 			sunExposure: app.sunExposure
 		});
+		// completions persist per (test, parameter) — reopening shows steps still checked
+		const completedKeys =
+			planTestId === null ? new Set<string>() : await completedPlanParameterKeys(planTestId);
+		const firstPendingIndex = fixPlan.actions.findIndex((action) => !completedKeys.has(action.key));
 		actions = fixPlan.actions.map((action, actionIndex) => ({
 			...action,
-			expanded: actionIndex === 0,
-			done: false,
+			expanded: actionIndex === firstPendingIndex,
+			done: completedKeys.has(action.key),
 			mathOpen: false
 		}));
 		inRange = fixPlan.inRange;
@@ -94,18 +100,17 @@
 		if (!action.done) action.expanded = !action.expanded;
 	}
 
-	// completed plan steps land in the /log journal (once per action per visit)
-	const journaledKeys = new SvelteSet<string>();
-
+	// completed plan steps land in the /log journal — keyed by (test, parameter)
+	// in the DB, so repeat taps and revisits can never journal a step twice
 	async function journalCompletedAction(action: ActionDisplay) {
-		if (journaledKeys.has(action.key)) return;
-		journaledKeys.add(action.key);
 		await insertAction({
 			performedAt: new Date(),
 			title: action.doseText
-				? `${action.title} · ${action.doseText.replace('Add ', '')} ${action.productName}`
+				? `${action.title} · added ${action.doseText.replace('Add ', '')} of ${action.productName}`
 				: action.title,
-			detail: 'From fix plan'
+			detail: 'From fix plan',
+			sourceTestId: planTestId,
+			parameterKey: action.key
 		});
 	}
 
@@ -389,20 +394,13 @@
 			<div style="font-size:11.5px;color:{palette.inkMuted};line-height:1.35;margin-top:12px;">
 				Doses are guidance, not gospel — always check your product's label before adding anything.
 			</div>
-			<a
-				href="/results/needs"
-				style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;color:{palette.accent};font-weight:700;font-size:14px;"
-			>
-				<Icon name="beaker" size={17} strokeWidth={1.8} />What you'll need to buy
-				<Icon name="chevron" size={14} color={palette.accent} strokeWidth={2.2} />
-			</a>
 		{/if}
 	</div>
 	<div style="padding:10px 16px 12px;flex-shrink:0;">
 		<button
-			onclick={() => (actions.length === 0 ? goto('/') : markAllDone())}
+			onclick={() => (pendingCount === 0 ? goto('/') : markAllDone())}
 			style="width:100%;background:{palette.accent};color:#fff;text-align:center;padding:15px;border-radius:15px;border:none;font-family:var(--font-sans);font-weight:700;font-size:16px;"
-			>{actions.length === 0 ? 'Back to my pool' : 'Mark all done'}</button
+			>{pendingCount === 0 ? 'Back to my pool' : 'Mark all done'}</button
 		>
 	</div>
 	<TabBar />

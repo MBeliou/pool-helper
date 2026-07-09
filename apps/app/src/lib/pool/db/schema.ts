@@ -1,4 +1,4 @@
-import { sqliteTable, integer, real, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, real, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { HARDNESS_UNITS, TEMPERATURE_UNITS, VOLUME_UNITS } from '../units';
 
 // Single-row table (id = 1): the pool profile collected during onboarding
@@ -92,13 +92,23 @@ export const diagnosesTable = sqliteTable('diagnoses', {
 
 // Actions the user has taken (dosing, maintenance…) — manually logged or
 // recorded while working an issue (issueId set). Shown in the /log journal.
-export const actionsTable = sqliteTable('actions', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	performedAt: integer('performed_at', { mode: 'timestamp_ms' }).notNull(),
-	title: text('title').notNull(),
-	detail: text('detail'),
-	issueId: integer('issue_id').references(() => issuesTable.id)
-});
+// Fix-plan completions carry (sourceTestId, parameterKey) — a unique pair, so
+// re-tapping "Mark all done" can never journal the same plan step twice.
+export const actionsTable = sqliteTable(
+	'actions',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		performedAt: integer('performed_at', { mode: 'timestamp_ms' }).notNull(),
+		title: text('title').notNull(),
+		detail: text('detail'),
+		issueId: integer('issue_id').references(() => issuesTable.id),
+		// set only for fix-plan steps: the test the plan was derived from + the
+		// parameter the step adjusted (NULL pairs are never constrained in SQLite)
+		sourceTestId: integer('source_test_id').references(() => testsTable.id),
+		parameterKey: text('parameter_key')
+	},
+	(table) => [uniqueIndex('actions_plan_step_unique').on(table.sourceTestId, table.parameterKey)]
+);
 
 export type ProfileRow = typeof profileTable.$inferSelect;
 export type NewProfileRow = typeof profileTable.$inferInsert;

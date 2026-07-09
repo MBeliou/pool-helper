@@ -12,6 +12,18 @@
 	import { createIssueWithPlan } from '$lib/pool/db/issuesRepository';
 	import { insertDiagnosis } from '$lib/pool/db/diagnosesRepository';
 	import type { TestRow } from '$lib/pool/db/schema';
+	import { SvelteMap } from 'svelte/reactivity';
+	import {
+		NO_TEST_NOTE,
+		SYMPTOMS,
+		questionsForSymptoms,
+		rankCauses,
+		type AnsweredQuestion,
+		type DiagnosisQuestion,
+		type SymptomKind
+	} from '$lib/pool/guidance/diagnosis';
+	import { runGuidance } from '$lib/pool/guidance/engine';
+	import { guidanceConfigFromProfile, guidanceReadingsFromTest } from '$lib/pool/fixPlan';
 
 	const palette = $derived(theme.palette);
 	const step = $derived(Number(page.params.step) || 1);
@@ -45,68 +57,64 @@
 		!latestTest ? '' : isToday(latestTest.testedAt) ? 'today' : formatShortDate(latestTest.testedAt)
 	);
 
-	// step 1 · symptoms (multi-select)
-	const symptoms = [
-		{ kind: 'cloudy', label: 'Cloudy' },
-		{ kind: 'green', label: 'Green tint' },
-		{ kind: 'algae', label: 'Algae' },
-		{ kind: 'eye', label: 'Eye sting' },
-		{ kind: 'smell', label: 'Strong smell' },
-		{ kind: 'foam', label: 'Foamy' }
-	];
-	let pickedSymptoms = $state<string[]>(['cloudy']);
-	function toggleSymptom(kind: string) {
+	// step 1 · symptoms (multi-select) — catalogue lives in guidance/diagnosis.ts
+	let pickedSymptoms = $state<SymptomKind[]>(['cloudy']);
+	function toggleSymptom(kind: SymptomKind) {
 		pickedSymptoms = pickedSymptoms.includes(kind)
 			? pickedSymptoms.filter((picked) => picked !== kind)
 			: [...pickedSymptoms, kind];
 	}
+	const pickedLabels = $derived(
+		SYMPTOMS.filter((symptom) => pickedSymptoms.includes(symptom.kind))
+			.map((symptom) => symptom.label)
+			.join(' · ') || 'No symptoms picked'
+	);
 
-	// step 2 · clarifying questions
-	let questions = $state([
-		{ prompt: 'Milky-white or hazy-blue?', options: ['Milky white', 'Hazy blue'], selected: 0 },
-		{ prompt: 'Shocked in the last 48h?', options: ['Yes', 'No', 'Not sure'], selected: 1 },
-		{ prompt: 'How long like this?', options: ['<1 day', '2–4 days', 'A week+'], selected: 1 }
-	]);
+	// step 2 · clarifying questions follow the picked symptoms; answers keyed by
+	// question id so switching symptoms doesn't wipe what was already answered
+	const questions = $derived(questionsForSymptoms(pickedSymptoms));
+	const selectedByQuestionId = new SvelteMap<string, number>();
+	function selectedIndexOf(question: DiagnosisQuestion): number {
+		return selectedByQuestionId.get(question.id) ?? 0;
+	}
 
-	// step 4 · ranked causes
-	const causes = [
-		{
-			title: 'Low chlorine + high pH',
-			likelihood: 'Most likely',
-			percent: 78,
-			status: 'low',
-			fix: 'Shock + lower pH'
-		},
-		{
-			title: 'Weak filtration',
-			likelihood: 'Possible',
-			percent: 41,
-			status: 'high',
-			fix: 'Run pump 8h+'
-		},
-		{
-			title: 'High calcium hardness',
-			likelihood: 'Less likely',
-			percent: 18,
-			status: 'info',
-			fix: 'Partial drain'
-		}
-	];
+	// step 4 · causes ranked by symptom priors × engine evidence × answers
+	const guidance = $derived(
+		latestTest
+			? runGuidance(
+					guidanceReadingsFromTest(latestTest),
+					guidanceConfigFromProfile({
+						volume: app.volume,
+						volumeUnit: app.volumeUnit,
+						hardnessUnit: app.hardnessUnit,
+						surface: app.surface,
+						sanitiser: app.sanitiser,
+						location: app.location,
+						sunExposure: app.sunExposure
+					})
+				)
+			: null
+	);
+	const answeredQuestions = $derived<AnsweredQuestion[]>(
+		questions.map((question) => ({ question, selectedIndex: selectedIndexOf(question) }))
+	);
+	const rankedCauses = $derived(rankCauses(pickedSymptoms, answeredQuestions, guidance));
+	let selectedCauseIndex = $state(0);
+	const selectedCause = $derived(
+		rankedCauses[Math.min(selectedCauseIndex, Math.max(rankedCauses.length - 1, 0))]
+	);
 
-	// Persist the wizard result and open the timeline on the new issue. Issue
-	// content is the placeholder top cause until the resolution pipeline supplies
-	// real ranking — this only wires the durable persistence seam.
+	// Persist the wizard result (the SELECTED cause) and open the timeline.
 	let startingPlan = $state(false);
 	async function startFixPlan() {
-		if (startingPlan) return;
+		if (startingPlan || !selectedCause) return;
 		startingPlan = true;
-		const topCause = causes[0];
 		try {
 			const issueId = await createIssueWithPlan(
 				{
-					title: topCause.title,
-					statusKey: topCause.status,
-					subtitle: `Next: ${topCause.fix}`,
+					title: selectedCause.title,
+					statusKey: selectedCause.statusKey,
+					subtitle: `Next: ${selectedCause.fixText}`,
 					progress: 0,
 					expectedDays: 3,
 					startedAt: new Date()
@@ -114,7 +122,7 @@
 				[
 					{
 						orderIndex: 0,
-						title: `Start: ${topCause.fix}`,
+						title: `Start: ${selectedCause.fixText}`,
 						whenLabel: 'In progress',
 						state: 'active'
 					},
@@ -129,11 +137,12 @@
 			await insertDiagnosis({
 				createdAt: new Date(),
 				symptoms: JSON.stringify(pickedSymptoms),
-				answers: JSON.stringify(questions.map((question) => question.selected)),
-				topCauseTitle: topCause.title,
-				topCausePercent: topCause.percent,
-				topCauseStatus: topCause.status,
-				topCauseFix: topCause.fix,
+				answers: JSON.stringify(answeredQuestions.map((answer) => answer.selectedIndex)),
+				topCauseTitle: selectedCause.title,
+				// internal relative score (top cause = 100) — never shown as a percent
+				topCausePercent: selectedCause.internalScore,
+				topCauseStatus: selectedCause.statusKey,
+				topCauseFix: selectedCause.fixText,
 				issueId
 			});
 			goto(`/care/timeline?issue=${issueId}`);
@@ -143,12 +152,17 @@
 		}
 	}
 
-	const stepHeadings: Record<number, { title: string; sub: string }> = {
+	const stepHeadings = $derived<Record<number, { title: string; sub: string }>>({
 		1: { title: 'What do you notice?', sub: 'Pick all that apply' },
-		2: { title: 'A few details', sub: 'Cloudy water' },
-		3: { title: 'Test first?', sub: 'Cloudy water' },
-		4: { title: 'Likely causes', sub: 'Based on a fresh test · ranked' }
-	};
+		2: { title: 'A few details', sub: pickedLabels },
+		3: { title: 'Test first?', sub: pickedLabels },
+		4: {
+			title: 'Likely causes',
+			sub: latestTest
+				? `From your symptoms + the test from ${testDateText}`
+				: 'From your symptoms — no recent test'
+		}
+	});
 </script>
 
 <div class="screen" style="background:{palette.page};">
@@ -200,7 +214,7 @@
 	{#if step === 1}
 		<div class="scroll" style="padding:16px 18px 0;">
 			<div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
-				{#each symptoms as symptom (symptom.kind)}
+				{#each SYMPTOMS as symptom (symptom.kind)}
 					{@const selected = pickedSymptoms.includes(symptom.kind)}
 					<button
 						onclick={() => toggleSymptom(symptom.kind)}
@@ -244,16 +258,16 @@
 	{:else if step === 2}
 		<div class="scroll" style="padding:18px 18px 0;">
 			<div style="display:flex;flex-direction:column;gap:20px;">
-				{#each questions as question (question.prompt)}
+				{#each questions as question (question.id)}
 					<div>
 						<div style="font-size:15.5px;font-weight:700;color:{palette.ink};margin-bottom:10px;">
 							{question.prompt}
 						</div>
 						<div style="display:flex;flex-wrap:wrap;gap:8px;">
-							{#each question.options as option, optionIndex (option)}
-								{@const selected = optionIndex === question.selected}
+							{#each question.options as option, optionIndex (option.label)}
+								{@const selected = optionIndex === selectedIndexOf(question)}
 								<button
-									onclick={() => (question.selected = optionIndex)}
+									onclick={() => selectedByQuestionId.set(question.id, optionIndex)}
 									style="padding:10px 16px;border-radius:999px;font-family:var(--font-sans);font-size:14px;font-weight:{selected
 										? 700
 										: 500};background:{selected
@@ -263,7 +277,7 @@
 										: palette.ink};border:1.5px solid {selected
 										? palette.accent
 										: palette.line};box-shadow:{selected ? 'none' : palette.shadow};"
-									>{option}</button
+									>{option.label}</button
 								>
 							{/each}
 						</div>
@@ -387,43 +401,54 @@
 	{:else}
 		<div class="scroll" style="padding:16px 18px 0;">
 			<div style="display:flex;flex-direction:column;gap:11px;">
-				{#each causes as cause, causeIndex (cause.title)}
-					{@const causeColor = statusColor(palette, cause.status)}
-					<div
-						style="background:{causeIndex === 0
+				{#each rankedCauses as cause, causeIndex (cause.id)}
+					{@const causeColor = statusColor(palette, cause.statusKey)}
+					{@const selected = causeIndex === selectedCauseIndex}
+					<!-- selectable: the plan starts from whichever cause the user picks -->
+					<button
+						onclick={() => (selectedCauseIndex = causeIndex)}
+						aria-pressed={selected}
+						style="text-align:left;font-family:var(--font-sans);background:{selected
 							? `${palette.accent}0d`
-							: palette.card};border-radius:16px;padding:14px 15px;box-shadow:{causeIndex === 0
+							: palette.card};border-radius:16px;padding:14px 15px;box-shadow:{selected
 							? 'none'
-							: palette.shadow};border:1.5px solid {causeIndex === 0
-							? palette.accent
-							: 'transparent'};"
+							: palette.shadow};border:1.5px solid {selected ? palette.accent : 'transparent'};"
 					>
 						<div style="display:flex;justify-content:space-between;align-items:center;">
 							<span
 								style="font-size:11.5px;font-weight:800;color:{causeColor};text-transform:uppercase;letter-spacing:0.5px;"
-								>{cause.likelihood}</span
+								>{cause.band}</span
 							>
-							<span
-								style="font-family:var(--font-display);font-weight:600;font-size:17px;color:{causeColor};"
-								>{cause.percent}%</span
-							>
+							{#if selected}
+								<span
+									style="width:20px;height:20px;border-radius:999px;background:{palette.accent};color:#fff;display:grid;place-items:center;font-size:11px;font-weight:800;"
+									>✓</span
+								>
+							{/if}
 						</div>
 						<div style="font-weight:700;font-size:15.5px;color:{palette.ink};margin:4px 0 8px;">
 							{cause.title}
 						</div>
 						<div style="height:6px;background:{palette.line};border-radius:999px;">
 							<div
-								style="width:{cause.percent}%;height:100%;background:{causeColor};border-radius:999px;"
+								style="width:{Math.round(
+									cause.barFraction * 100
+								)}%;height:100%;background:{causeColor};border-radius:999px;"
 							></div>
 						</div>
 						<div style="display:flex;gap:7px;margin-top:9px;">
 							<span style="font-size:12.5px;color:{palette.inkMuted};">Fix:</span><span
-								style="font-size:12.5px;font-weight:700;color:{palette.ink};">{cause.fix}</span
+								style="font-size:12.5px;font-weight:700;color:{palette.ink};">{cause.fixText}</span
 							>
 						</div>
-					</div>
+					</button>
 				{/each}
 			</div>
+			{#if !latestTest}
+				<div style="font-size:12px;color:{palette.inkMuted};line-height:1.4;margin-top:12px;">
+					{NO_TEST_NOTE}
+				</div>
+			{/if}
 		</div>
 		<div
 			style="flex-shrink:0;display:flex;gap:12px;padding:12px 18px calc(var(--safe-bottom) + 16px);"

@@ -71,6 +71,13 @@
 			"when": 1783521697462,
 			"tag": "0009_pool_location_sun_exposure",
 			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "6",
+			"when": 1783597072449,
+			"tag": "0010_fix_plan_completion_keys",
+			"breakpoints": true
 		}
 	]
 }

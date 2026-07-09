@@ -16,7 +16,9 @@ export const ICON_PATHS = {
 	spark:
 		'M12 4v4M12 16v4M4 12h4M16 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8',
 	close: 'M6 6l12 12M18 6 6 18',
-	trend: 'M3 17l5-5 4 4 8-8M21 8v5h-5'
+	trend: 'M3 17l5-5 4 4 8-8M21 8v5h-5',
+	// circled checkmark — journal "action done" rows (distinct from parameter glyphs)
+	check: 'M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17ZM8.6 12.2l2.3 2.3 4.5-4.8'
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;
