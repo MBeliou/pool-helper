@@ -64,9 +64,28 @@ if (!set67) {
 	add("screenshots.iphone67", "screenshots", "iPhone 6.7\"/6.9\" screenshots", status, `${shots.length} uploaded${incomplete ? `, ${incomplete} still processing/failed` : ""}`);
 }
 
+// ── iPad screenshots — only required when the build declares iPad support ────
+// (learned at submission: Capacitor defaults to TARGETED_DEVICE_FAMILY "1,2",
+// which makes ASC demand 13" iPad screenshots)
+try {
+	const pbxproj = await Deno.readTextFile(fromFileUrl(new URL("../ios/App/App.xcodeproj/project.pbxproj", import.meta.url)));
+	if (/TARGETED_DEVICE_FAMILY = "?1,2"?;/.test(pbxproj)) {
+		const iPadSet = sets.find((s) => String(s.attributes.screenshotDisplayType).startsWith("APP_IPAD_PRO"));
+		add("screenshots.ipad13", "screenshots", "iPad 13\" screenshots", iPadSet ? "ok" : "missing", iPadSet ? "" : "build declares iPad support (TARGETED_DEVICE_FAMILY 1,2) — upload 13\" iPad shots or set the project iPhone-only (TARGETED_DEVICE_FAMILY = 1)");
+	} else {
+		add("screenshots.ipad13", "screenshots", "iPad 13\" screenshots", "ok", "not required — project is iPhone-only");
+	}
+} catch {
+	add("screenshots.ipad13", "screenshots", "iPad 13\" screenshots", "unknown", "project.pbxproj not readable");
+}
+
 // ── build attached ───────────────────────────────────────────────────────────
 const build = await g(`/v1/appStoreVersions/${version.id}/build`);
 add("version.build", "version", "Build attached", (build as { data?: unknown } | null)?.data ? "ok" : "missing", (build as { data?: unknown } | null)?.data ? "" : "no build selected");
+
+// ── copyright (required version attribute; pushed by metadata:push) ──────────
+const copyright = (version.attributes as Record<string, unknown>).copyright;
+add("version.copyright", "version", "Copyright", present(copyright) ? "ok" : "missing", String(copyright ?? "not set — add copyright= to metadata/urls.txt and run metadata:push"));
 
 // ── review details (contact) ─────────────────────────────────────────────────
 const review = attrs(await g(`/v1/appStoreVersions/${version.id}/appStoreReviewDetail`));
@@ -91,22 +110,27 @@ const appAvail = await g(`/v1/apps/${appId}/appAvailabilityV2`);
 add("app.availability", "app", "App territory availability", (appAvail as { data?: unknown } | null)?.data ? "ok" : "missing", "");
 
 // ── products (subscriptions + IAPs) ──────────────────────────────────────────
+// good = submittable or already moving through / past review
+const PRODUCT_OK_STATES = ["READY_TO_SUBMIT", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_BINARY_APPROVAL", "APPROVED"];
+const productStatus = (state: string): Status => (PRODUCT_OK_STATES.includes(state) ? "ok" : "missing");
 const subGroups = listData(await g(`/v1/apps/${appId}/subscriptionGroups`));
 for (const grp of subGroups) {
 	for (const s of listData(await g(`/v1/subscriptionGroups/${grp.id}/subscriptions`))) {
 		const state = s.attributes.state as string;
 		const av = await readAvailability("subscription", s.id);
-		add(`product.${s.attributes.productId}`, "products", `Subscription ${s.attributes.productId}`, state === "READY_TO_SUBMIT" ? "ok" : "missing", `${state} · ${av.territoryCount} territories`);
+		add(`product.${s.attributes.productId}`, "products", `Subscription ${s.attributes.productId}`, productStatus(state), `${state} · ${av.territoryCount} territories`);
 	}
 }
 for (const p of listData(await g(`/v1/apps/${appId}/inAppPurchasesV2`))) {
 	const state = p.attributes.state as string;
 	const av = await readAvailability("iap", p.id);
-	add(`product.${p.attributes.productId}`, "products", `IAP ${p.attributes.productId}`, state === "READY_TO_SUBMIT" ? "ok" : "missing", `${state} · ${av.territoryCount} territories`);
+	add(`product.${p.attributes.productId}`, "products", `IAP ${p.attributes.productId}`, productStatus(state), `${state} · ${av.territoryCount} territories`);
 }
 
 // ── not exposed by the API (manual) ──────────────────────────────────────────
 add("agreement.paidApps", "agreements", "Paid Apps Agreement + banking/tax", "unknown", "not in the API — verify in App Store Connect → Agreements");
+add("version.iapAttached", "version", "IAPs attached to the version", "unknown", "not in the API — version page → In-App Purchases and Subscriptions → add both products (first-time IAPs are reviewed WITH the app; READY_TO_SUBMIT alone is not enough)");
+add("app.privacyDetails", "app", "App Privacy questionnaire published", "unknown", "not in the API — see README \"App Privacy\" (RevenueCat requires declaring Purchase History under App Functionality + Analytics)");
 
 // ── emit ─────────────────────────────────────────────────────────────────────
 const GROUP_ORDER = ["listing", "meta", "screenshots", "version", "app", "products", "agreements"];

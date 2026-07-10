@@ -80,7 +80,42 @@ renderfast client are parked (text/background render fine) for when that's fixed
 
 ## Still done by hand (outside these tools)
 
-- Deploy the marketing site so the Privacy URL (`/privacy`) is live.
-- Confirm the Annual + Lifetime IAP are attached to the version for review.
-- Final **Submit for Review** in App Store Connect.
+Everything below bit us during the real 1.0 submission — `deno task readiness` reminds you of
+these, but the API can't verify most of them.
+
+- **Deploy the marketing site** so the Privacy URL (`/privacy`) is live — the reviewer follows it.
+- **Attach the IAPs to the version** — version page → *In-App Purchases and Subscriptions* → add
+  both products. First-time IAPs are reviewed **with** the app version; `READY_TO_SUBMIT` in the
+  products section is NOT enough on its own. Miss this and the app can be approved while the
+  paywall sells nothing in production.
+- **App Privacy questionnaire** (App → App Privacy) — must be **published** by an Account
+  Holder/Admin before submission. Because we ship the RevenueCat SDK, per
+  [RevenueCat's Apple privacy guidance](https://www.revenuecat.com/docs/platform-resources/apple-platform-resources/apple-app-privacy):
+  - Declare **Purchases → Purchase History**, with BOTH purposes **App Functionality** (receipt
+    validation, entitlements) and **Analytics** (RC dashboards/charts).
+  - **Not linked to identity** (we use RC anonymous IDs — would flip to "linked" if we ever set a
+    custom appUserID) · **not used for tracking**.
+  - Everything else: *Data not collected* — pool data lives on-device only.
+- **Copyright** — required version field; now pushed by `metadata:push` from `urls.txt`
+  (`copyright=© 2026 …`).
+- **iPad screenshots** — demanded automatically if the build declares iPad support. We ship
+  iPhone-only (`TARGETED_DEVICE_FAMILY = 1` in project.pbxproj); if that ever flips back to
+  `"1,2"` (Capacitor's default), ASC requires 13" iPad (2064×2752) screenshots too.
+- **App review information** (version page) — contact name/phone/email (private; use a monitored
+  personal inbox, not the public hello@), "sign-in required" unticked (no accounts), and reviewer
+  notes **in English**: data on-device, no login, Pro sold via RevenueCat paywall (annual w/
+  3-day trial + lifetime).
+- **Pricing & availability** — app price $0 (Pro is IAP) + territory availability selected
+  (all territories; trimming later needs no re-review).
+- **Paid Apps Agreement** (Agreements, Tax, and Banking) — must be Active with banking/tax
+  complete or paid IAPs won't go live. Not visible via the API.
+- **RevenueCat entitlement identifier** must equal `revenuecatConfig.ts`
+  `MY_POOL_PRO_ENTITLEMENT` (**`My Pool Pro`**, exact case/spacing) with both products attached —
+  otherwise purchases succeed but Pro never unlocks. Identifiers can't be renamed in RC; recreate
+  the entitlement if wrong.
+- **Build numbers**: Xcode's "Automatically manage build number" rewrites the archive's number at
+  upload time — the pbxproj value is a starting point, not what ASC necessarily receives. Trust
+  the Organizer's *Submission Status* for what was actually uploaded.
+- Final **Submit for Review** in App Store Connect (answer the export-compliance question
+  "exempt only" if asked).
 </content>
