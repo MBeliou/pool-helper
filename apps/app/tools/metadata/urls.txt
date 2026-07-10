@@ -8,3 +8,6 @@ privacy_url=https://getmypool.care/privacy
 # App Store category ids (see push-metadata.ts for the enum).
 primary_category=LIFESTYLE
 secondary_category=UTILITIES
+
+# Required version attribute — the © line shown on the product page.
+copyright=© 2026 Maxime Bele

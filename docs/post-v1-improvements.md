@@ -44,6 +44,12 @@ Legend: **What** · **Why deferred** · **Where it lives** · **Notes to pick it
   device" — an API call breaks that unless disclosed), cost, offline behaviour, and how to keep the
   model from giving unsafe dosing advice (constrain it to the computed doses, don't let it invent
   numbers).
+- **Update 2026-07-10 — conversation-driven diagnose/care:** direction confirmed: rework the
+  diagnose / care engine to be **discussion-driven** with an LLM in the loop — a back-and-forth
+  ("tell me more — is the water milky or green? did it rain?") instead of a fixed wizard. This is
+  **in addition to** the deterministic guidance engine, not a replacement: the engine stays the
+  source of truth for ranges and doses; the LLM handles elicitation and explanation. Same design
+  constraints as above (privacy promise, offline, no invented numbers).
 
 ## 2. Total chlorine vs. free chlorine (and testers that only read total)
 
@@ -130,6 +136,45 @@ Legend: **What** · **Why deferred** · **Where it lives** · **Notes to pick it
   pretended to know the user's products. Interim state: catalogue defaults + the "check your
   product's label" disclaimer.
 
+## 8. Pump profile — capture the user's pump (added 2026-07-10)
+
+- **What:** The profile knows volume, sanitiser, and filter media, but nothing about the **pump**
+  (name/model, size/horsepower, flow rate, single vs. variable speed). Pump info matters for real
+  advice: turnover time (how long to run the pump for the pool's volume), "run the pump" durations
+  in fix plans, filtration-weakness diagnosis, and energy tips.
+- **Why deferred:** Not needed for v1 chemistry advice; adds profile schema + entry UI + the logic
+  that actually uses it.
+- **Where it lives:** Pool profile (`state/app.svelte.ts` + its persistence), and eventually the
+  guidance engine's filtration evidence.
+- **Notes:** Do **not** add it to onboarding (keep onboarding short) — prompt for it contextually
+  later, e.g. the first time advice would depend on it ("How big is your pump? This tunes your run
+  time") or as a "Complete your pool profile" card. Most users don't know their pump specs offhand —
+  a photo of the pump label via the vision scan (item 7's phase 2) is the low-friction path.
+
+## 9. Programmatic SEO (pSEO) pages on the marketing site (added 2026-07-10)
+
+- **What:** Generate long-tail landing pages on `getmypool.care` from combinations of pool
+  attributes — `<pool size>` × `<filter medium>` × `<pump size>` × `<pump name>` — answering
+  "what's required for my setup" style queries, plus general problem pages ("help me fix my green
+  pool", cloudy water, etc.). Every page CTAs to the app download.
+- **Why deferred:** Marketing-site workstream; needs the App Store URL live first (site is
+  pre-launch until `site.appStoreUrl` is set) and content that's actually correct per combination.
+- **Where it lives:** `apps/marketing` (SvelteKit, config-driven via `site.ts`, deployed to Vercel).
+  The chemistry/dosing knowledge to make pages substantive already exists in
+  `src/lib/pool/chemistry.ts` / `dosing.ts` — reuse it at build time rather than hand-writing.
+- **Notes:** Quality over volume — thin doorway pages risk Google penalties; each template needs
+  genuinely differentiated content (e.g. actual dose numbers for that pool size, turnover time for
+  that pump). Problem pages ("green pool") are the highest-intent entry points and can ship first
+  without the combinatorial matrix. Respect the no-fake-stats/reviews rule. Pump-name pages need a
+  pump database (ties into item 8).
+
+## 10. General Items
+- **Onboarding text too small on macOS** (found 2026-07-10 on the macOS TestFlight build — the
+  iOS app running on Apple Silicon). The onboarding steps (e.g. Step 4 "Units & region") render with
+  tiny type in the desktop-sized window; content doesn't scale up with the larger viewport. Decide:
+  scale typography/layout for wide windows, cap the window size, or opt the app out of Mac
+  availability in App Store Connect. Re-check the whole app on macOS, not just onboarding.
+
 ---
 
 ## Related v1-launch honesty gaps (NOT fixed — awaiting your direction)
@@ -137,8 +182,6 @@ Legend: **What** · **Why deferred** · **Where it lives** · **Notes to pick it
 The readiness review found places where the app/store currently _claim_ things these deferred features
 would deliver. **No code or copy was changed** — these are flagged for you to decide how to handle:
 
-- **Diagnose wizard (item 1)** — the flagship Pro feature returns fabricated static causes/percentages.
-  Awaiting the diagnosis-requirements doc before any change.
 - **Salt/Bromine (item 3)** — onboarding says the sanitiser "changes the chemistry advice" and the
   marketing FAQ / App Store description promise "chlorine or salt", but only chlorine is supported.
 

@@ -86,6 +86,15 @@ await patch("subtitle + privacy URL", `/v1/appInfoLocalizations/${iLoc.id}`, {
 	},
 });
 
+// version: copyright (required before first submission)
+await patch("copyright", `/v1/appStoreVersions/${version.id}`, {
+	data: {
+		id: version.id,
+		type: "appStoreVersions",
+		attributes: { copyright: urls.copyright },
+	},
+});
+
 // categories
 await patch("categories", `/v1/appInfos/${info.id}`, {
 	data: {

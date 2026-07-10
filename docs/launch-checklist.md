@@ -90,17 +90,13 @@ Until these exist, "Start my 3-day free trial" / "Get Pro" open an empty/non-ren
 ## Phase 5 — On-device QA (verify what shipped) 🧑
 
 Run these on the TestFlight/device build:
-- [ ] **Onboarding text too small on macOS** (found 2026-07-10 on the macOS TestFlight build — the
-  iOS app running on Apple Silicon). The onboarding steps (e.g. Step 4 "Units & region") render with
-  tiny type in the desktop-sized window; content doesn't scale up with the larger viewport. Decide:
-  scale typography/layout for wide windows, cap the window size, or opt the app out of Mac
-  availability in App Store Connect. Re-check the whole app on macOS, not just onboarding.
-- [ ] Reminders: More → Developer (dev build) "Send a test notification (5s)" → background the app → banner arrives. (DEV-only; in a release build, verify by setting a 1-day cadence and checking it schedules.)
-- [ ] Status bar legible (white) over the gradient on every screen; cold-launch shows blue splash → app with no white flash.
+
+- [x] Reminders: More → Developer (dev build) "Send a test notification (5s)" → background the app → banner arrives. (DEV-only; in a release build, verify by setting a 1-day cadence and checking it schedules.)
+- [x] Status bar legible (white) over the gradient on every screen; cold-launch shows blue splash → app with no white flash.
 - [x] Volume: enter `9.7` with m³ selected; switch litres↔m³ and confirm the value converts.
 - [x] Diagnose wizard → "Start a fix plan" creates an issue in Care that survives relaunch.
-- [ ] Export: More → Export my data → share sheet offers a JSON.
-- [ ] Decimal entry with a comma (`7,4`) saves as 7.4.
+- [x] Export: More → Export my data → share sheet offers a JSON.
+- [x] Decimal entry with a comma (`7,4`) saves as 7.4.
 
 ## Owned elsewhere / decisions ⏳
 
