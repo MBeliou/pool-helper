@@ -14,9 +14,9 @@ export const site: SiteConfig = {
 		domain: 'getmypool.care'
 	},
 
-	// Pre-launch: leave undefined and every download CTA renders a "Coming soon"
-	// badge. At launch, set this to the App Store URL and they become real links.
-	// appStoreUrl: 'https://apps.apple.com/app/idXXXXXXXXXX',
+	// Launch switch: when unset, every download CTA renders a "Coming soon" badge.
+	// The id-only form redirects to the canonical localized App Store URL.
+	appStoreUrl: 'https://apps.apple.com/app/id6781731215',
 
 	nav: [
 		{ label: 'Features', href: '#features' },
