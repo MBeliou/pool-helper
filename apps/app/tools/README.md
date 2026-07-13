@@ -96,6 +96,17 @@ these, but the API can't verify most of them.
   - **Not linked to identity** (we use RC anonymous IDs — would flip to "linked" if we ever set a
     custom appUserID) · **not used for tracking**.
   - Everything else: *Data not collected* — pool data lives on-device only.
+- **Terms of Use link in the description** — guideline 3.1.2: apps with auto-renewable
+  subscriptions must link a Terms of Use in the app metadata. Missing it auto-rejects the
+  submission before human review; the 1.0 submission was bounced for it. We link our own terms
+  page (`https://getmypool.care/terms`) in `metadata/en-US/description.txt` — per dev-forum
+  reports that's the most reliably approved fix (Apple's standard-EULA link
+  `apple.com/legal/internet-services/itunes/dev/stdeula/` also commonly passes; a custom EULA in
+  ASC is the third option). `readiness` checks the pushed description for the link.
+  3.1.2 also requires functional Terms + Privacy links **inside the app** — for us that's the
+  RevenueCat-hosted paywall footer, configured in the RC dashboard (verify Terms →
+  getmypool.care/terms, Privacy → getmypool.care/privacy); the app's own UI renders no legal
+  links.
 - **Copyright** — required version field; now pushed by `metadata:push` from `urls.txt`
   (`copyright=© 2026 …`).
 - **iPad screenshots** — demanded automatically if the build declares iPad support. We ship

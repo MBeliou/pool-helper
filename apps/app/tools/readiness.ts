@@ -48,6 +48,11 @@ add("listing.name", "listing", "App name", present(il.name) ? "ok" : "missing", 
 add("listing.subtitle", "listing", "Subtitle", present(il.subtitle) ? "ok" : "warning", String(il.subtitle ?? "not set"));
 add("listing.privacyPolicyUrl", "listing", "Privacy policy URL", present(il.privacyPolicyUrl) ? "ok" : "missing", String(il.privacyPolicyUrl ?? "not set"));
 
+// ── EULA link (guideline 3.1.2: auto-renewable subs need a Terms of Use link) ─
+const hasEulaLink = /apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula/i.test(String(vl.description ?? "")) ||
+	/terms of use[^\n]*https?:\/\//i.test(String(vl.description ?? ""));
+add("listing.eulaLink", "listing", "Terms of Use (EULA) link in description", hasEulaLink ? "ok" : "missing", hasEulaLink ? "" : "apps with auto-renewable subscriptions must link a Terms of Use in the description (our terms page getmypool.care/terms, or Apple's stdeula URL) — guideline 3.1.2");
+
 // ── category ─────────────────────────────────────────────────────────────────
 const cat = rel(await g(`/v1/appInfos/${info.id}?include=primaryCategory`), "primaryCategory") as { id?: string } | undefined;
 add("meta.primaryCategory", "meta", "Primary category", cat?.id ? "ok" : "missing", cat?.id ?? "not set");
