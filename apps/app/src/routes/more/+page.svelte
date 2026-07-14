@@ -236,6 +236,15 @@
 						</div>
 						<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
 					</button>
+					<!-- presentPaywall (unlike presentPaywallIfNeeded) opens even while entitled,
+					     so subscribers can see the current plans and offers -->
+					<button
+						onclick={() => billing.presentPaywall()}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
+					>
+						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">View plans</div>
+						<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
+					</button>
 				{:else}
 					<!-- not subscribed: open the RevenueCat paywall -->
 					<button
