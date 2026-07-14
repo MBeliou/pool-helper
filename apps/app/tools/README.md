@@ -132,7 +132,32 @@ these, but the API can't verify most of them.
 - **Subscription propagation after release** — a newly released subscription can take up to ~24h
   after the app goes live before production StoreKit returns it (one-time IAPs appear sooner), so
   the paywall may briefly show only the lifetime offer. Expected lag, not a config bug — check
-  ASC product states and the RC offering before changing anything.
+  ASC product states and the RC offering before changing anything. Hit for real the day after
+  launch (2026-07-14): paywall logged `Could not find package $rc_annual`, yet
+  `deno task products:push -- --target=rc` (which also lists offerings → packages → products) and
+  `deno task prices:report` both showed everything active/APPROVED — the only remaining suspect is
+  StoreKit propagation, so wait it out and only escalate to Apple/RC support past ~48h. Two hard-won
+  lessons from that incident:
+  - **Local probes cannot clear a report against the shipped app.** Locally-signed builds
+    (simulator apps) and unsigned CLIs do a *generic* StoreKit lookup; App Store-signed builds
+    resolve against a per-app published path on Apple's backend. During this incident, ~33h after
+    release, an unsigned SK2 CLI on the same Mac/account/storefront (FRA) returned both products
+    at 22:09 while the Mac App Store build's SK2 request at 22:10 parsed only `lifetime_pro` and
+    RC logged `Could not find products with identifiers: ["yearly_sub"]`. Reinstalls and device
+    reboots changed nothing — the divergence is server-side, keyed to the signed-app context.
+  - **The decisive observation is the installed app's own log stream** (no taps needed — RC fetches
+    products at configure): `/usr/bin/log show --last 5m --predicate 'process == "App"' --info
+    --debug` on the Mac (note: `log` bare is shadowed by a zsh builtin), grep for `Parsing N
+    products in response` and the RC WARNs. Pair it with the unsigned SK2 CLI probe
+    (`Product.products(for:)` + `Storefront.current`, compiled with `xcrun swiftc -parse-as-library
+    probe.swift -o probe -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker
+    Info.plist`, Info.plist carrying the app's `CFBundleIdentifier`) for a same-minute A/B — that
+    pair is the evidence bundle Apple support needs.
+  - Sub-lessons that burned a day: propagation is per-storefront (a US-storefront sim probe says
+    nothing about FR; always read the `currentStorefront updated to <id>` log line); page-scrape
+    "evidence" must capture the whole In-App Purchases module (a truncated scrape "showed" a
+    missing product the real page listed); app reinstall does not clear the device-wide
+    `storekitd` cache.
 - **Build numbers**: Xcode's "Automatically manage build number" rewrites the archive's number at
   upload time — the pbxproj value is a starting point, not what ASC necessarily receives. Trust
   the Organizer's *Submission Status* for what was actually uploaded.

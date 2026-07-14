@@ -258,6 +258,16 @@ async function verifyRevenueCat() {
 		for (const p of products.items ?? []) console.log(`  product ${p.store_identifier ?? p.id} — ${p.type}`);
 		const ents = await rc(`/projects/${proj.id}/entitlements`).catch(() => ({ items: [] }));
 		for (const e of ents.items ?? []) console.log(`  entitlement ${e.lookup_key ?? e.id}`);
+		const offerings = await rc(`/projects/${proj.id}/offerings?expand=items.package.product`).catch(() => ({ items: [] }));
+		for (const o of offerings.items ?? []) {
+			console.log(`  offering ${o.lookup_key ?? o.id}${o.is_current ? " (current)" : ""} — ${o.state}${o.paywall_id ? "" : ", NO PAYWALL ATTACHED"}`);
+			for (const pkg of o.packages?.items ?? []) {
+				const prods = (pkg.products?.items ?? [])
+					.map((it: { product: { store_identifier: string; state: string } }) => `${it.product.store_identifier} [${it.product.state}]`)
+					.join(", ");
+				console.log(`    package ${pkg.lookup_key} → ${prods || "NO PRODUCTS ATTACHED"}`);
+			}
+		}
 	}
 	console.log("\n(RC prices are read-only via API — set them in App Store Connect with --target=asc.)");
 }

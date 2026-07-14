@@ -174,6 +174,12 @@ Legend: **What** · **Why deferred** · **Where it lives** · **Notes to pick it
   tiny type in the desktop-sized window; content doesn't scale up with the larger viewport. Decide:
   scale typography/layout for wide windows, cap the window size, or opt the app out of Mac
   availability in App Store Connect. Re-check the whole app on macOS, not just onboarding.
+- **App shows up as "App" in logs and crash reports** (noticed 2026-07-14 while diagnosing the
+  paywall via Console.app). The Xcode target keeps Capacitor's default `PRODUCT_NAME = App`, so the
+  process/executable is named `App` even though the display name is "My Pool". Rename the product
+  (or set `PRODUCT_NAME = "My Pool"` on the App target in `ios/App/App.xcodeproj`) so device logs,
+  crash reports and Instruments traces are identifiable. Verify a TestFlight archive/upload still
+  works afterward — the executable name changes with it.
 
 ---
 
