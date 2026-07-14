@@ -151,6 +151,23 @@
 		}
 	}
 
+	// Hidden diagnostic: 5 quick taps on the "My Pool Pro · Active" row open the
+	// paywall even while entitled (presentPaywall, unlike presentPaywallIfNeeded,
+	// shows regardless), so the live paywall can be inspected on a production
+	// install without a visible affordance for subscribers.
+	let proStatusTaps = 0;
+	let proStatusTapTimeout: ReturnType<typeof setTimeout> | undefined;
+	function handleProStatusTap() {
+		clearTimeout(proStatusTapTimeout);
+		proStatusTaps += 1;
+		if (proStatusTaps >= 5) {
+			proStatusTaps = 0;
+			billing.presentPaywall();
+			return;
+		}
+		proStatusTapTimeout = setTimeout(() => (proStatusTaps = 0), 1500);
+	}
+
 	let restoreStatus = $state('');
 
 	async function restorePurchases() {
@@ -217,16 +234,19 @@
 				style="background:{palette.card};border-radius:16px;box-shadow:{palette.shadow};overflow:hidden;"
 			>
 				{#if billing.isPro}
-					<!-- active subscriber: manage via Customer Center -->
-					<div
-						style="display:flex;justify-content:space-between;align-items:center;padding:12px 15px;"
+					<!-- active subscriber: manage via Customer Center. The status row doubles as
+					     the hidden paywall entry (see handleProStatusTap) — keep it looking like a
+					     plain, non-interactive row -->
+					<button
+						onclick={handleProStatusTap}
+						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:none;border:none;text-align:left;font-family:var(--font-sans);cursor:default;"
 					>
 						<div>
 							<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">My Pool Pro</div>
 							<div style="font-size:11.5px;color:{palette.status.ok};font-weight:600;">Active</div>
 						</div>
 						<Icon name="shield" size={16} color={palette.status.ok} strokeWidth={2} />
-					</div>
+					</button>
 					<button
 						onclick={() => billing.presentCustomerCenter()}
 						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
@@ -234,15 +254,6 @@
 						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">
 							Manage subscription
 						</div>
-						<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
-					</button>
-					<!-- presentPaywall (unlike presentPaywallIfNeeded) opens even while entitled,
-					     so subscribers can see the current plans and offers -->
-					<button
-						onclick={() => billing.presentPaywall()}
-						style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border:none;border-top:1px solid {palette.line};background:none;text-align:left;font-family:var(--font-sans);"
-					>
-						<div style="font-size:14.5px;color:{palette.ink};font-weight:600;">View plans</div>
 						<Icon name="chevron" size={15} color={palette.inkMuted} strokeWidth={2} />
 					</button>
 				{:else}
