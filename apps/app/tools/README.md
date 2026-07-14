@@ -123,7 +123,16 @@ these, but the API can't verify most of them.
 - **RevenueCat entitlement identifier** must equal `revenuecatConfig.ts`
   `MY_POOL_PRO_ENTITLEMENT` (**`My Pool Pro`**, exact case/spacing) with both products attached —
   otherwise purchases succeed but Pro never unlocks. Identifiers can't be renamed in RC; recreate
-  the entitlement if wrong.
+  the entitlement if wrong. The identifier that matters is the **lookup_key**
+  (`customerInfo.entitlements.active` is keyed by it) — the display name is irrelevant, and a
+  recreated entitlement grants nothing until products are attached. This bit us at launch: RC had
+  `Pool Doctor Pro` (products attached) and `my_pool_pro` (display "My Pool Pro", no products), so
+  live purchases charged without unlocking Pro. Mappings apply retroactively on the customer's
+  next CustomerInfo fetch, so fixing the entitlement heals past purchases.
+- **Subscription propagation after release** — a newly released subscription can take up to ~24h
+  after the app goes live before production StoreKit returns it (one-time IAPs appear sooner), so
+  the paywall may briefly show only the lifetime offer. Expected lag, not a config bug — check
+  ASC product states and the RC offering before changing anything.
 - **Build numbers**: Xcode's "Automatically manage build number" rewrites the archive's number at
   upload time — the pbxproj value is a starting point, not what ASC necessarily receives. Trust
   the Organizer's *Submission Status* for what was actually uploaded.
