@@ -118,12 +118,23 @@ const ABSOLUTE_MIN_FC_RAISE_TARGET = 3;
 // reading is handled by restoring FC to target and letting FC + sunlight burn
 // the CC off. A single reading is also noisy at this scale (FAS-DPD resolves
 // 0.2–0.5 ppm per drop, ~±0.4 ppm accuracy; strips are worse), so the engine
-// only prescribes the shock when CC is beyond plausible noise:
+// only prescribes the shock when CC is beyond plausible noise or has proven
+// itself across tests:
 //   < 0.5        nothing
-//   0.5 – 2.0    note it + "retest total chlorine" follow-up on the FC raise
-//   ≥ 2.0        shock (replaces the plain raise)
+//   0.5 – 1.0    note it + "retest total chlorine" follow-up on the FC raise
+//   1.0 – 2.0    same, but shock if it has PERSISTED across 3 tests (context)
+//   ≥ 2.0        shock now (replaces the plain raise)
 const COMBINED_CHLORINE_NOTE_PPM = 0.5;
+const COMBINED_CHLORINE_PERSIST_PPM = 1.0;
 const COMBINED_CHLORINE_SHOCK_PPM = 2.0;
+// Persistence = the latest test plus two priors all at CC ≥ 1.0, each pair of
+// counted tests at least 12 h apart (same-evening retests are one water state,
+// not persistence) and all within a week of the latest test — one week is well
+// past "FC + sunlight clears it". Exported so call sites size their history
+// fetch from the same window.
+export const COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS = 7;
+const COMBINED_CHLORINE_MIN_RETEST_GAP_HOURS = 12;
+const COMBINED_CHLORINE_PERSISTENCE_PRIOR_COUNT = 2;
 // shock target when the FC/CYA targets are undefined (CYA ≈ 0 outdoors)
 const FALLBACK_SHOCK_TARGET_PPM = 10;
 
@@ -132,7 +143,66 @@ const AFTER_ACID_STEPS = [
 	'Retest pH — still high? Repeat this step tomorrow'
 ];
 
-export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig): GuidanceResult {
+/** a prior test, reduced to what CC-persistence needs — no DB shape leaks in */
+export interface PriorChlorineReading {
+	testedAt: Date;
+	fc: number | null;
+	tc: number | null;
+}
+
+/** optional history context — specs and legacy callers omit it entirely */
+export interface GuidanceContext {
+	/** when the current readings were taken — anchors the persistence window */
+	testedAt?: Date;
+	/** tests taken before the current one (any order; the engine filters) */
+	priorTests?: PriorChlorineReading[];
+}
+
+/**
+ * CC ≥ 1.0 on the latest test alone is within a mild band — but the same level
+ * confirmed on two earlier, independent tests inside the week is persistence,
+ * which is exactly what TFP says warrants the SLAM shock.
+ */
+function combinedChlorinePersists(
+	latestCombined: number,
+	context: GuidanceContext
+): boolean {
+	if (
+		latestCombined < COMBINED_CHLORINE_PERSIST_PPM ||
+		latestCombined >= COMBINED_CHLORINE_SHOCK_PPM ||
+		context.testedAt === undefined
+	)
+		return false;
+	const windowMs = COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS * 24 * 3600 * 1000;
+	const gapMs = COMBINED_CHLORINE_MIN_RETEST_GAP_HOURS * 3600 * 1000;
+	const anchorMs = context.testedAt.getTime();
+	const qualifying = (context.priorTests ?? [])
+		.filter((prior) => {
+			if (prior.fc === null || prior.tc === null) return false;
+			const priorCombined = Math.max(0, prior.tc - prior.fc);
+			const ageMs = anchorMs - prior.testedAt.getTime();
+			return priorCombined >= COMBINED_CHLORINE_PERSIST_PPM && ageMs > 0 && ageMs <= windowMs;
+		})
+		.map((prior) => prior.testedAt.getTime())
+		.sort((a, b) => b - a);
+	// count newest-first, skipping tests too close to the previously counted
+	// one — each counted test must be its own water state
+	let counted = 0;
+	let lastCountedMs = anchorMs;
+	for (const priorMs of qualifying) {
+		if (lastCountedMs - priorMs < gapMs) continue;
+		counted += 1;
+		lastCountedMs = priorMs;
+		if (counted >= COMBINED_CHLORINE_PERSISTENCE_PRIOR_COUNT) return true;
+	}
+	return false;
+}
+
+export function runGuidance(
+	readings: GuidanceReadings,
+	config: GuidanceConfig,
+	context: GuidanceContext = {}
+): GuidanceResult {
 	const verdicts: ParameterVerdict[] = [];
 	const requestInput: GuidanceResult['requestInput'] = [];
 	const candidates: CandidateAdjustment[] = [];
@@ -155,22 +225,38 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 		config.sanitizer !== 'bromine' && readings.fc !== null && readings.tc !== null
 			? Math.round(Math.max(0, readings.tc - readings.fc) * 10) / 10
 			: null;
-	const needsChloramineShock =
-		combinedChlorine !== null && combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM;
+	const chloramineShockReason: 'high' | 'persistent' | null =
+		combinedChlorine === null
+			? null
+			: combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM
+				? 'high'
+				: combinedChlorinePersists(combinedChlorine, context)
+					? 'persistent'
+					: null;
+	const needsChloramineShock = chloramineShockReason !== null;
 	// elevated but mild: normal FC + sunlight usually clears it — no shock yet
 	const combinedChlorineElevated =
 		combinedChlorine !== null &&
 		combinedChlorine >= COMBINED_CHLORINE_NOTE_PPM &&
 		!needsChloramineShock;
-	const combinedChlorineNote = needsChloramineShock
-		? `About ${combinedChlorine} ppm of the chlorine is used up — only a shock clears it.`
-		: combinedChlorineElevated
-			? `About ${combinedChlorine} ppm of the chlorine is used up (combined). Normal chlorine plus sunlight usually clears this on its own — retest free AND total chlorine after your next top-up. Still above 0.5 combined? Then a shock is due.`
-			: null;
+	const combinedChlorineNote =
+		chloramineShockReason === 'high'
+			? `About ${combinedChlorine} ppm of the chlorine is used up — only a shock clears it.`
+			: chloramineShockReason === 'persistent'
+				? `Combined chlorine has held above 1 ppm across your recent tests — a shock is due.`
+				: combinedChlorineElevated
+					? `About ${combinedChlorine} ppm of the chlorine is used up (combined). Normal chlorine plus sunlight usually clears this on its own — retest free AND total chlorine after your next top-up. Still above 0.5 combined? Then a shock is due.`
+					: null;
 	// mild-CC extras for the plain FC raises: keep the CC fact visible on the
-	// verdict, and make the raise's follow-up cover the "does it persist?" check
+	// verdict AND inside the action's why (verdict notes are swallowed on the
+	// results screen whenever an action owns the parameter), and make the
+	// raise's follow-up cover the "does it persist?" check
 	const withMildCombinedNote = (note: string) =>
 		combinedChlorineElevated && combinedChlorineNote ? `${note} ${combinedChlorineNote}` : note;
+	const withMildCombinedWhy = (why: string) =>
+		combinedChlorineElevated
+			? `${why} There's also about ${combinedChlorine} ppm of used-up (combined) chlorine — mild for now; the retest step below tells you whether it clears or a shock is due.`
+			: why;
 	const mildCombinedFollowUp = combinedChlorineElevated
 		? ['Retest total chlorine too — if combined (total − free) is still above 0.5, shock at dusk']
 		: [];
@@ -259,7 +345,10 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			currentValue: readings.fc,
 			targetValue: Math.max(levelTargets?.shock ?? FALLBACK_SHOCK_TARGET_PPM, readings.fc + 1),
 			title: 'Shock to clear used-up chlorine',
-			why: `About ${combinedChlorine} ppm of your chlorine is used up (combined chlorine) — that's what stings eyes and makes the strong "chlorine" smell. Ironically the fix is MORE chlorine: a shock burns the used-up part off.`,
+			why:
+				chloramineShockReason === 'persistent'
+					? `Combined (used-up) chlorine has stayed above 1 ppm across your recent tests — normal chlorine and sunlight had their chance and aren't clearing it. It's what stings eyes and makes the strong "chlorine" smell. Ironically the fix is MORE chlorine: a shock clears the used-up part.`
+					: `About ${combinedChlorine} ppm of your chlorine is used up (combined chlorine) — well beyond test noise, and more than daily chlorine and sunlight can burn off. It's what stings eyes and makes the strong "chlorine" smell. Ironically the fix is MORE chlorine: a shock clears the used-up part.`,
 			sideEffects: [],
 			followUpSteps: [
 				'Shock at dusk (sunlight fights you) and run the pump overnight',
@@ -302,10 +391,11 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					currentValue: readings.fc,
 					targetValue: ABSOLUTE_MIN_FC_RAISE_TARGET,
 					title: 'Raise chlorine now',
-					why:
+					why: withMildCombinedWhy(
 						readings.cya === null
 							? 'Safety first: under-sanitised water gets worse by the hour. Test CYA too — without stabiliser, sunlight burns chlorine off within hours.'
-							: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.',
+							: 'Safety first: under-sanitised water gets worse by the hour. It will not hold until stabiliser is up — expect to re-dose.'
+					),
 					sideEffects: [],
 					followUpSteps: [
 						readings.cya === null
@@ -346,7 +436,9 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					currentValue: readings.fc,
 					targetValue: Math.min(levelTargets.target, raiseCeiling),
 					title: config.sanitizer === 'bromine' ? 'Raise bromine now' : 'Raise chlorine now',
-					why: 'Safety first: under-sanitised water is the one problem that gets worse by the hour.',
+					why: withMildCombinedWhy(
+						'Safety first: under-sanitised water is the one problem that gets worse by the hour.'
+					),
 					sideEffects:
 						config.sanitizer === 'swg'
 							? ['dose manually — the cell alone is too slow to catch up']
@@ -385,10 +477,11 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 							: config.sanitizer === 'bromine'
 								? 'Top up bromine'
 								: 'Top up chlorine',
-					why:
+					why: withMildCombinedWhy(
 						config.sanitizer === 'swg'
 							? `Above the safe floor but below target (${levelTargets.target} ppm) — raise the cell output a notch instead of dosing.`
-							: `Above the safe floor but below the maintenance target of ${levelTargets.target} ppm.`,
+							: `Above the safe floor but below the maintenance target of ${levelTargets.target} ppm.`
+					),
 					sideEffects: [],
 					followUpSteps:
 						config.sanitizer === 'swg'

@@ -250,6 +250,113 @@ describe('combined (used-up) chlorine', () => {
 		const shockAction = result.actions.find((action) => action.title.includes('Shock'));
 		expect(shockAction?.targetValue).toBe(10);
 	});
+
+	it('mild CC + low FC → the raise why carries the combined-chlorine fact', () => {
+		// verdict notes are swallowed on /results when an action owns FC — the
+		// why is the surface the user actually reads
+		const result = runGuidance(
+			readings({ fc: 2.0, tc: 3.6, ph: 7.4, ta: 80, cya: 40, ch: 300, temp: 26 }),
+			OUTDOOR_CHLORINE_PLASTER
+		);
+		const raiseAction = result.actions.find((action) => action.parameter === 'fc');
+		expect(raiseAction?.why).toMatch(/used-up \(combined\)/);
+	});
+});
+
+describe('combined chlorine persistence (history context)', () => {
+	const ANCHOR = new Date('2026-07-15T18:00:00Z');
+	// latest CC = 1.6 at CYA 40 — mild on its own, SLAM-worthy if persistent
+	const MILD_CC_READINGS = readings({
+		fc: 2.0,
+		tc: 3.6,
+		ph: 7.4,
+		ta: 80,
+		cya: 40,
+		ch: 300,
+		temp: 26
+	});
+	/** a prior test `hoursAgo` before the anchor with the given fc/tc */
+	function prior(hoursAgo: number, fc: number | null, tc: number | null) {
+		return { testedAt: new Date(ANCHOR.getTime() - hoursAgo * 3600 * 1000), fc, tc };
+	}
+
+	it('mild CC confirmed by two priors inside the week → shock escalates', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 2.5, 3.8), prior(96, 3.0, 4.2)]
+		});
+		const fcActions = result.actions.filter((action) => action.parameter === 'fc');
+		expect(fcActions).toHaveLength(1);
+		expect(fcActions[0].title).toBe('Shock to clear used-up chlorine');
+		expect(fcActions[0].priority).toBe(0);
+		expect(fcActions[0].targetValue).toBe(16); // SLAM at CYA 40
+		expect(fcActions[0].why).toMatch(/stayed above 1/);
+	});
+
+	it('same readings without context → no shock (backward compatible)', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER);
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('only one qualifying prior → no escalation (two required)', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 2.5, 3.8)]
+		});
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('priors bunched within 12 h count as one water state', () => {
+		// both priors elevated, but the second sits 3 h after the first
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 2.5, 3.8), prior(51, 2.6, 3.9)]
+		});
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('a prior outside the 7-day window does not count', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 2.5, 3.8), prior(9 * 24, 3.0, 4.2)]
+		});
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('a prior without a total-chlorine reading does not count', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 2.5, 3.8), prior(96, 3.0, null)]
+		});
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('priors below the 1.0 ppm floor do not count', () => {
+		const result = runGuidance(MILD_CC_READINGS, OUTDOOR_CHLORINE_PLASTER, {
+			testedAt: ANCHOR,
+			priorTests: [prior(48, 3.0, 3.7), prior(96, 3.2, 3.9)]
+		});
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('a latest CC below 1.0 never escalates, whatever the history says', () => {
+		const result = runGuidance(
+			readings({ fc: 4.8, tc: 5.5, ph: 7.4, ta: 80, cya: 40, ch: 300, temp: 26 }), // CC 0.7
+			OUTDOOR_CHLORINE_PLASTER,
+			{ testedAt: ANCHOR, priorTests: [prior(48, 2.5, 3.8), prior(96, 3.0, 4.2)] }
+		);
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
+
+	it('bromine pools ignore the history context entirely', () => {
+		const result = runGuidance(
+			readings({ fc: 2, tc: 3.6, ph: 7.4, ta: 80 }),
+			{ ...OUTDOOR_CHLORINE_PLASTER, sanitizer: 'bromine' },
+			{ testedAt: ANCHOR, priorTests: [prior(48, 2.5, 3.8), prior(96, 3.0, 4.2)] }
+		);
+		expect(result.combinedChlorine).toBeNull();
+		expect(result.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+	});
 });
 
 describe('sequencer & retest-gating (spec §6)', () => {

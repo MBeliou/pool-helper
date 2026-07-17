@@ -100,7 +100,8 @@ const CAUSES: CauseDefinition[] = [
 		id: 'chloramines',
 		title: 'Used-up chlorine (chloramines)',
 		statusKey: 'high',
-		// evidence comes from combined chlorine (total − free) via the engine
+		// evidence comes from combined chlorine (total − free) via the engine;
+		// symptom-driven summary — the engine's shock action carries the full copy
 		fixSummary: 'Shock to break down chloramines'
 	},
 	{
