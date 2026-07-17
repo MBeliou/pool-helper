@@ -26,7 +26,13 @@ import {
 	type DoseRequest,
 	type DosingProduct
 } from './dosing';
-import { runGuidance, type GuidanceReadings, type GuidanceResult } from './guidance/engine';
+import {
+	runGuidance,
+	type GuidanceContext,
+	type GuidanceReadings,
+	type GuidanceResult
+} from './guidance/engine';
+import { resolveTesterType, type TesterType } from './data';
 import {
 	locationFromProfile,
 	sanitizerLevelLabel,
@@ -103,6 +109,36 @@ export interface FixPlanResult {
 	warnings: string[];
 	/** readings the engine wants next time ("water temperature for the limescale check") */
 	requestInput: string[];
+	/** general reliability hint when the latest test came off strips — null otherwise */
+	testerHint: string | null;
+}
+
+/** history + tester context the call sites fetch alongside the latest test */
+export interface FixPlanContext {
+	/** e.g. getTestsSince(COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS + 3) — any order */
+	recentTests?: TestRow[];
+	/** listTesters() rows — structural match for resolveTesterType */
+	storedTesters?: { name: string; type: TesterType }[];
+}
+
+const STRIPS_HINT =
+	"Logged with test strips — they're rough near band edges. Confirm any surprising reading with a drop test before big corrections.";
+
+/** the engine's history context from raw test rows — also used by the diagnose page */
+export function guidanceContextFromHistory(
+	latestTest: TestRow,
+	{ recentTests = [] }: FixPlanContext
+): GuidanceContext {
+	return {
+		testedAt: latestTest.testedAt,
+		priorTests: recentTests
+			.filter((test) => test.id !== latestTest.id && test.testedAt < latestTest.testedAt)
+			.map((test) => ({
+				testedAt: test.testedAt,
+				fc: testValue(test, 'fc'),
+				tc: test.totalChlorine
+			}))
+	};
 }
 
 export function volumeToCubicMetres(volume: number | null, volumeUnit: VolumeUnit): number {
@@ -213,19 +249,25 @@ export function repriceAction(
 /** Derive the fix plan from the latest test through the guidance engine. */
 export function computeFixPlan(
 	latestTest: TestRow | undefined,
-	poolProfile: PoolGuidanceProfile
+	poolProfile: PoolGuidanceProfile,
+	fixPlanContext: FixPlanContext = {}
 ): FixPlanResult {
 	const empty: FixPlanResult = {
 		actions: [],
 		deferred: [],
 		inRange: [],
 		warnings: [],
-		requestInput: []
+		requestInput: [],
+		testerHint: null
 	};
 	if (!latestTest) return empty;
 
 	const config = guidanceConfigFromProfile(poolProfile);
-	const guidance: GuidanceResult = runGuidance(guidanceReadingsFromTest(latestTest), config);
+	const guidance: GuidanceResult = runGuidance(
+		guidanceReadingsFromTest(latestTest),
+		config,
+		guidanceContextFromHistory(latestTest, fixPlanContext)
+	);
 
 	const displayUnits: DisplayUnits = {
 		hardnessUnit: poolProfile.hardnessUnit,
@@ -344,6 +386,11 @@ export function computeFixPlan(
 		deferred,
 		inRange,
 		warnings,
-		requestInput: guidance.requestInput.map((request) => request.reason)
+		requestInput: guidance.requestInput.map((request) => request.reason),
+		testerHint:
+			fixPlanContext.storedTesters &&
+			resolveTesterType(latestTest.tester, fixPlanContext.storedTesters) === 'strips'
+				? STRIPS_HINT
+				: null
 	};
 }
