@@ -70,6 +70,32 @@ describe('demo scenarios reproduce their engine outcomes', () => {
 		expect(result.actions[0]?.title).toBe('Shock to clear used-up chlorine');
 	});
 
+	it('persistent-chloramines: mild CC alone stays mild, history escalates it', () => {
+		const definition = scenario('persistent-chloramines');
+		// without history: mild band, no shock
+		const single = guidanceFor(definition);
+		expect(single.combinedChlorine).toBeCloseTo(1.4, 5);
+		expect(single.actions.some((action) => action.title.includes('Shock'))).toBe(false);
+		// with the scenario's own history (seeded a day apart each): shock escalates
+		const anchor = new Date('2026-07-15T08:30:00Z');
+		const rowDate = (daysAgo: number) => new Date(anchor.getTime() - daysAgo * 24 * 3600 * 1000);
+		const priorRows = definition.history.slice(0, -1);
+		const escalated = runGuidance(
+			latestReadings(definition),
+			guidanceConfigFromProfile({ ...DEMO_BASE_POOL, ...definition.profile } as PoolGuidanceProfile),
+			{
+				testedAt: anchor,
+				priorTests: priorRows.map(([daysAgo, , fc, , , , , tc]) => ({
+					testedAt: rowDate(daysAgo),
+					fc,
+					tc: tc ?? null
+				}))
+			}
+		);
+		expect(escalated.actions[0]?.title).toBe('Shock to clear used-up chlorine');
+		expect(escalated.actions[0]?.why).toMatch(/stayed above 1/);
+	});
+
 	it('safety-floor: emergency chlorine raise despite unknown CYA', () => {
 		const result = guidanceFor(scenario('safety-floor'));
 		expect(result.actions[0]?.title).toBe('Raise chlorine now');

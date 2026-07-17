@@ -8,7 +8,7 @@
 	import { daysSince, formatShortDate, hoursSince, isToday } from '$lib/pool/format';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import SymptomGlyph from '$lib/pool/components/SymptomGlyph.svelte';
-	import { getLatestTest } from '$lib/pool/db/testsRepository';
+	import { getLatestTest, getTestsSince } from '$lib/pool/db/testsRepository';
 	import { createIssueWithPlan } from '$lib/pool/db/issuesRepository';
 	import { insertDiagnosis } from '$lib/pool/db/diagnosesRepository';
 	import type { TestRow } from '$lib/pool/db/schema';
@@ -22,8 +22,16 @@
 		type DiagnosisQuestion,
 		type SymptomKind
 	} from '$lib/pool/guidance/diagnosis';
-	import { runGuidance } from '$lib/pool/guidance/engine';
-	import { guidanceConfigFromProfile, guidanceReadingsFromTest } from '$lib/pool/fixPlan';
+	import {
+		runGuidance,
+		COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS,
+		type GuidanceContext
+	} from '$lib/pool/guidance/engine';
+	import {
+		guidanceConfigFromProfile,
+		guidanceContextFromHistory,
+		guidanceReadingsFromTest
+	} from '$lib/pool/fixPlan';
 
 	const palette = $derived(theme.palette);
 	const step = $derived(Number(page.params.step) || 1);
@@ -31,6 +39,8 @@
 	// step 3 · freshness of the latest logged test
 	let latestTest = $state<TestRow | undefined>(undefined);
 	let testLoaded = $state(false);
+	// recent-test history for the engine's combined-chlorine persistence check
+	let guidanceContext = $state<GuidanceContext>({});
 
 	onMount(async () => {
 		await app.load();
@@ -43,6 +53,11 @@
 			return;
 		}
 		latestTest = await getLatestTest();
+		if (latestTest) {
+			// +3 days: getTestsSince cuts from now, the engine anchors on testedAt
+			const recentTests = await getTestsSince(COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS + 3);
+			guidanceContext = guidanceContextFromHistory(latestTest, { recentTests });
+		}
 		testLoaded = true;
 	});
 
@@ -91,7 +106,8 @@
 						sanitiser: app.sanitiser,
 						location: app.location,
 						sunExposure: app.sunExposure
-					})
+					}),
+					guidanceContext
 				)
 			: null
 	);

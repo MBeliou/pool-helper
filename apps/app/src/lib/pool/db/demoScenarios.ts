@@ -123,6 +123,18 @@ export const GUIDANCE_SCENARIO_DEFINITIONS: GuidanceScenarioDefinition[] = [
 		]
 	},
 	{
+		id: 'persistent-chloramines',
+		title: 'Stubborn combined Cl',
+		description: 'Mild combined chlorine on 3 tests running — history escalates to the shock',
+		profile: {},
+		history: [
+			[5, 7.4, 3.2, 82, 300, 40, 26, 4.4],
+			[3, 7.4, 3.0, 81, 300, 40, 26, 4.2],
+			[1, 7.5, 2.8, 80, 298, 41, 27, 4.1],
+			[0, 7.4, 2.6, 80, 300, 40, 26, 4.0]
+		]
+	},
+	{
 		id: 'safety-floor',
 		title: 'FC emergency',
 		description: 'Strip shows 0.2 ppm alone — safety raise despite unknown CYA',

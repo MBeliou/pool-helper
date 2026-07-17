@@ -7,7 +7,9 @@
 	import { computeFixPlan, guidanceConfigFromProfile, type FixAction } from '$lib/pool/fixPlan';
 	import { derivedParameterDefinitions } from '$lib/pool/guidance/displayBands';
 	import { formatShortDate, formatTimeCompact, isToday } from '$lib/pool/format';
-	import { getLatestTest } from '$lib/pool/db/testsRepository';
+	import { getLatestTest, getTestsSince } from '$lib/pool/db/testsRepository';
+	import { listTesters } from '$lib/pool/db/testersRepository';
+	import { COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS } from '$lib/pool/guidance/engine';
 	import { completedPlanParameterKeys } from '$lib/pool/db/actionsRepository';
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
@@ -50,7 +52,15 @@
 				latestTest ? testValue(latestTest, 'cya') : null
 			)
 		);
-		const fixPlan = computeFixPlan(latestTest, poolProfile);
+		// history feeds the combined-chlorine persistence check; +3 days because
+		// getTestsSince cuts from now while the engine window anchors on testedAt
+		const [recentTests, storedTesters] = latestTest
+			? await Promise.all([
+					getTestsSince(COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS + 3),
+					listTesters()
+				])
+			: [[], []];
+		const fixPlan = computeFixPlan(latestTest, poolProfile, { recentTests, storedTesters });
 		fixActions = fixPlan.actions;
 		missingInputs = fixPlan.requestInput;
 		completedKeys = latestTest ? await completedPlanParameterKeys(latestTest.id) : new Set();

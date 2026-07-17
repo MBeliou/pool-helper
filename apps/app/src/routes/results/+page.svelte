@@ -15,7 +15,9 @@
 	import Icon from '$lib/pool/components/Icon.svelte';
 	import NavHeader from '$lib/pool/components/NavHeader.svelte';
 	import TabBar from '$lib/pool/components/TabBar.svelte';
-	import { getLatestTest } from '$lib/pool/db/testsRepository';
+	import { getLatestTest, getTestsSince } from '$lib/pool/db/testsRepository';
+	import { listTesters } from '$lib/pool/db/testersRepository';
+	import { COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS } from '$lib/pool/guidance/engine';
 	import { completedPlanParameterKeys, insertAction } from '$lib/pool/db/actionsRepository';
 
 	const palette = $derived(theme.palette);
@@ -32,6 +34,8 @@
 	let deferred = $state<DeferredFix[]>([]);
 	let warnings = $state<string[]>([]);
 	let requestInput = $state<string[]>([]);
+	// general strips-are-rough reliability hint (null unless the latest test used strips)
+	let testerHint = $state<string | null>(null);
 	let loaded = $state(false);
 	// the test this plan derives from — keys the persisted step completions
 	let planTestId = $state<number | null>(null);
@@ -40,15 +44,27 @@
 		await app.load();
 		const latestTest = await getLatestTest();
 		planTestId = latestTest?.id ?? null;
-		const fixPlan = computeFixPlan(latestTest, {
-			volume: app.volume,
-			volumeUnit: app.volumeUnit,
-			hardnessUnit: app.hardnessUnit,
-			surface: app.surface,
-			sanitiser: app.sanitiser,
-			location: app.location,
-			sunExposure: app.sunExposure
-		});
+		// history feeds the combined-chlorine persistence check; +3 days because
+		// getTestsSince cuts from now while the engine window anchors on testedAt
+		const [recentTests, storedTesters] = latestTest
+			? await Promise.all([
+					getTestsSince(COMBINED_CHLORINE_PERSISTENCE_WINDOW_DAYS + 3),
+					listTesters()
+				])
+			: [[], []];
+		const fixPlan = computeFixPlan(
+			latestTest,
+			{
+				volume: app.volume,
+				volumeUnit: app.volumeUnit,
+				hardnessUnit: app.hardnessUnit,
+				surface: app.surface,
+				sanitiser: app.sanitiser,
+				location: app.location,
+				sunExposure: app.sunExposure
+			},
+			{ recentTests, storedTesters }
+		);
 		// completions persist per (test, parameter) — reopening shows steps still checked
 		const completedKeys =
 			planTestId === null ? new Set<string>() : await completedPlanParameterKeys(planTestId);
@@ -63,6 +79,7 @@
 		deferred = fixPlan.deferred;
 		warnings = fixPlan.warnings;
 		requestInput = fixPlan.requestInput;
+		testerHint = fixPlan.testerHint;
 		loaded = true;
 		if (actions.length > 0 && !app.disclaimerAcceptedAt) disclaimerOpen = true;
 	});
@@ -320,6 +337,15 @@
 					<div style="font-size:13px;color:{palette.ink};line-height:1.4;">{warning}</div>
 				</div>
 			{/each}
+			{#if testerHint}
+				<!-- measurement-reliability hint, quieter than the consequence warnings -->
+				<div style="display:flex;gap:10px;align-items:flex-start;padding:2px 13px;">
+					<div style="color:{palette.inkMuted};flex-shrink:0;margin-top:1px;">
+						<Icon name="beaker" size={16} strokeWidth={1.9} />
+					</div>
+					<div style="font-size:12.5px;color:{palette.inkMuted};line-height:1.4;">{testerHint}</div>
+				</div>
+			{/if}
 			{#if deferred.length > 0}
 				<div
 					style="font-size:12px;color:{palette.inkMuted};font-weight:800;text-transform:uppercase;letter-spacing:0.6px;margin:6px 2px 0;"
