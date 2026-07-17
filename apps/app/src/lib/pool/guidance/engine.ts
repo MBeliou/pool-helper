@@ -113,11 +113,17 @@ interface CandidateAdjustment extends Omit<GuidanceAction, 'priority'> {
 const ABSOLUTE_MIN_FC = 1;
 const ABSOLUTE_MIN_FC_RAISE_TARGET = 3;
 
-// Combined (used-up) chlorine thresholds. TFP treats CC ≥ 0.5 ppm as worth
-// attention; acting that early felt overeager in practice (user decision), so:
-// note that it's building at ≥ 0.5, prescribe the shock at ≥ 1.0.
+// Combined (used-up) chlorine bands. TFP treats CC ≤ 0.5 ppm as normal, and
+// reserves the SLAM shock for algae or PERSISTENT chloramines — a lone mild
+// reading is handled by restoring FC to target and letting FC + sunlight burn
+// the CC off. A single reading is also noisy at this scale (FAS-DPD resolves
+// 0.2–0.5 ppm per drop, ~±0.4 ppm accuracy; strips are worse), so the engine
+// only prescribes the shock when CC is beyond plausible noise:
+//   < 0.5        nothing
+//   0.5 – 2.0    note it + "retest total chlorine" follow-up on the FC raise
+//   ≥ 2.0        shock (replaces the plain raise)
 const COMBINED_CHLORINE_NOTE_PPM = 0.5;
-const COMBINED_CHLORINE_SHOCK_PPM = 1.0;
+const COMBINED_CHLORINE_SHOCK_PPM = 2.0;
 // shock target when the FC/CYA targets are undefined (CYA ≈ 0 outdoors)
 const FALLBACK_SHOCK_TARGET_PPM = 10;
 
@@ -151,14 +157,23 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			: null;
 	const needsChloramineShock =
 		combinedChlorine !== null && combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM;
-	const combinedChlorineNote =
-		combinedChlorine === null
-			? null
-			: combinedChlorine >= COMBINED_CHLORINE_SHOCK_PPM
-				? `About ${combinedChlorine} ppm of the chlorine is used up — only a shock clears it.`
-				: combinedChlorine >= COMBINED_CHLORINE_NOTE_PPM
-					? `Used-up chlorine is building (~${combinedChlorine} ppm combined) — a shock will be due soon.`
-					: null;
+	// elevated but mild: normal FC + sunlight usually clears it — no shock yet
+	const combinedChlorineElevated =
+		combinedChlorine !== null &&
+		combinedChlorine >= COMBINED_CHLORINE_NOTE_PPM &&
+		!needsChloramineShock;
+	const combinedChlorineNote = needsChloramineShock
+		? `About ${combinedChlorine} ppm of the chlorine is used up — only a shock clears it.`
+		: combinedChlorineElevated
+			? `About ${combinedChlorine} ppm of the chlorine is used up (combined). Normal chlorine plus sunlight usually clears this on its own — retest free AND total chlorine after your next top-up. Still above 0.5 combined? Then a shock is due.`
+			: null;
+	// mild-CC extras for the plain FC raises: keep the CC fact visible on the
+	// verdict, and make the raise's follow-up cover the "does it persist?" check
+	const withMildCombinedNote = (note: string) =>
+		combinedChlorineElevated && combinedChlorineNote ? `${note} ${combinedChlorineNote}` : note;
+	const mildCombinedFollowUp = combinedChlorineElevated
+		? ['Retest total chlorine too — if combined (total − free) is still above 0.5, shock at dusk']
+		: [];
 
 	// ── CYA (priority 1) ────────────────────────────────────────────────
 	if (cyaTargetBand === null) {
@@ -274,7 +289,9 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			verdicts.push({
 				parameter: 'fc',
 				status: 'low',
-				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+				note: withMildCombinedNote(
+					'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+				)
 			});
 			if (!needsChloramineShock)
 				candidates.push({
@@ -293,7 +310,8 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					followUpSteps: [
 						readings.cya === null
 							? 'Retest chlorine in a few hours — and test stabiliser (CYA) too'
-							: 'Retest chlorine in a few hours'
+							: 'Retest chlorine in a few hours',
+						...mildCombinedFollowUp
 					],
 					priority: 0,
 					moves: ['fc'],
@@ -315,7 +333,9 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 			verdicts.push({
 				parameter: 'fc',
 				status: 'low',
-				note: 'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+				note: withMildCombinedNote(
+					'Under-sanitised — bacteria and algae can gain ground. This comes first.'
+				)
 			});
 			if (!needsChloramineShock) {
 				candidates.push({
@@ -332,7 +352,8 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 							? ['dose manually — the cell alone is too slow to catch up']
 							: [],
 					followUpSteps: [
-						`Retest ${config.sanitizer === 'bromine' ? 'bromine' : 'chlorine'} in a few hours`
+						`Retest ${config.sanitizer === 'bromine' ? 'bromine' : 'chlorine'} in a few hours`,
+						...mildCombinedFollowUp
 					],
 					priority: 0,
 					moves: ['fc'],
@@ -371,8 +392,11 @@ export function runGuidance(readings: GuidanceReadings, config: GuidanceConfig):
 					sideEffects: [],
 					followUpSteps:
 						config.sanitizer === 'swg'
-							? ['Retest chlorine in a couple of days to confirm the new output holds']
-							: ['Retest tomorrow'],
+							? [
+									'Retest chlorine in a couple of days to confirm the new output holds',
+									...mildCombinedFollowUp
+								]
+							: ['Retest tomorrow', ...mildCombinedFollowUp],
 					priority: 5,
 					moves: ['fc'],
 					dependsOn: ['cya']

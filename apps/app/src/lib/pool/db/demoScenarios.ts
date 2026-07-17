@@ -116,10 +116,10 @@ export const GUIDANCE_SCENARIO_DEFINITIONS: GuidanceScenarioDefinition[] = [
 		description: 'High combined chlorine — the shock-to-clear case',
 		profile: {},
 		history: [
-			[9, 7.4, 3.4, 82, 300, 40, 26, 3.7],
-			[6, 7.4, 3.0, 81, 300, 40, 26, 3.8],
-			[3, 7.5, 2.4, 80, 298, 41, 27, 3.7],
-			[0, 7.4, 2.0, 80, 300, 40, 26, 3.6]
+			[9, 7.4, 3.4, 82, 300, 40, 26, 4.0],
+			[6, 7.4, 3.0, 81, 300, 40, 26, 4.1],
+			[3, 7.5, 2.4, 80, 298, 41, 27, 4.3],
+			[0, 7.4, 2.0, 80, 300, 40, 26, 4.5]
 		]
 	},
 	{

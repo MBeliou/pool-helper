@@ -66,7 +66,7 @@ describe('demo scenarios reproduce their engine outcomes', () => {
 
 	it('smelly-water: high combined chlorine triggers the shock action', () => {
 		const result = guidanceFor(scenario('smelly-water'));
-		expect(result.combinedChlorine).toBeCloseTo(1.6, 5);
+		expect(result.combinedChlorine).toBeCloseTo(2.5, 5);
 		expect(result.actions[0]?.title).toBe('Shock to clear used-up chlorine');
 	});
 
